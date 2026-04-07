@@ -1,0 +1,129 @@
+.data-studio-container {
+    display: flex;
+    height: calc(100vh - 4rem);
+    background: #f8f9fa;
+    font-family: 'Inter', sans-serif;
+}
+
+.studio-sidebar {
+    width: 300px;
+    background: white;
+    border-right: 1px solid #dee2e6;
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid #eee;
+}
+
+.connect-btn {
+    width: 100%;
+    padding: 0.75rem;
+    background: #1a2a6c;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.connect-btn:hover {
+    background: #b21f1f;
+}
+
+.dataset-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+}
+
+.dataset-item {
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    color: #495057;
+    transition: all 0.2s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 0.25rem;
+}
+
+.dataset-item:hover {
+    background: #f1f3f5;
+    color: #1a2a6c;
+}
+
+.dataset-item.active {
+    background: #e7f5ff;
+    color: #1a2a6c;
+    font-weight: 600;
+    border-left: 4px solid #1a2a6c;
+}
+
+.studio-main {
+    flex: 1;
+    padding: 2rem;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.table-header {
+    margin-bottom: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.table-container {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    overflow: auto;
+    border: 1px solid #eee;
+}
+
+.oracle-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.oracle-table th {
+    background: #f8f9fa;
+    color: #495057;
+    font-weight: 600;
+    text-align: left;
+    padding: 1rem;
+    border-bottom: 2px solid #dee2e6;
+    position: sticky;
+    top: 0;
+}
+
+.oracle-table td {
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid #eee;
+    color: #212529;
+}
+
+.oracle-table tr:hover {
+    background: #f9f9f9;
+}
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #adb5bd;
+}
+
+.empty-state h2 {
+    margin: 1rem 0;
+}

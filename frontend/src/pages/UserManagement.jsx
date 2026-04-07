@@ -101,6 +101,7 @@ const UserManagement = () => {
 
     return (
         <div className="user-management-container">
+            <img src="/logo.png" alt="Decision Minds" style={{ width: '60px', marginBottom: '1rem' }} />
             <h1>User Management</h1>
             <p>Manage geographies, domains, and business units for enterprise users.</p>
 

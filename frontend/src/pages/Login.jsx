@@ -32,6 +32,7 @@ function Login() {
     <div className="login-wrapper">
       <div className="login-card">
         <div className="login-header">
+          <img src="/logo.png" alt="Decision Minds" style={{ width: '80px', marginBottom: '1rem' }} />
           <h2>Decision Minds</h2>
           <p>Enterprise SLM Platform</p>
         </div>
