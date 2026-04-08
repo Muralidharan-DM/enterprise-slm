@@ -450,3 +450,56 @@ button:hover {
         padding: 1rem;
     }
 }
+
+/* ──────────────────────────────────────────
+   CONNECTION BANNER (DB FLOW)
+   ────────────────────────────────────────── */
+.connection-banner {
+    padding: 0.6rem 1.25rem;
+    background: rgba(15, 23, 42, 0.4);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    margin: -2rem -2rem 2rem -2rem; /* Negate canvas padding */
+}
+
+.conn-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.conn-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+}
+
+.conn-dot.success {
+    background-color: #10b981;
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+}
+
+.conn-dot.error {
+    background-color: #ef4444;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+}
+
+.conn-text strong {
+    color: var(--text-primary);
+    font-weight: 700;
+}
+
+.conn-text a {
+    color: var(--accent-primary);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.conn-text a:hover {
+    text-decoration: underline;
+}

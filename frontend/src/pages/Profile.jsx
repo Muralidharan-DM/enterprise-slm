@@ -22,8 +22,8 @@ const Profile = () => {
         try {
             const res = await API.get("users/me/");
             setProfile(res.data);
-            setFirstName(res.data.user_details.first_name || "");
-            setLastName(res.data.user_details.last_name || "");
+            setFirstName(res.data.first_name || "");
+            setLastName(res.data.last_name || "");
             if (res.data.profile_photo) {
                 setPhotoPreview(res.data.profile_photo);
             }
@@ -78,7 +78,7 @@ const Profile = () => {
                 <div className="card text-center flex flex-col items-center">
                     <div className="profile-photo-wrapper mb-4" style={{ position: 'relative' }}>
                         <img 
-                            src={photoPreview || "https://ui-avatars.com/api/?name=" + profile.user_details.email} 
+                            src={photoPreview || "https://ui-avatars.com/api/?name=" + (profile?.email || 'User')} 
                             alt="Profile" 
                             style={{ width: '150px', height: '150px', borderRadius: '50%', objectFit: 'cover', border: '4px solid var(--accent-primary)' }}
                         />
@@ -93,10 +93,10 @@ const Profile = () => {
                             </label>
                         )}
                     </div>
-                    <h3 className="mb-1">{profile.user_details.first_name} {profile.user_details.last_name}</h3>
-                    <p className="text-secondary small">{profile.user_details.email}</p>
+                    <h3 className="mb-1">{profile?.first_name} {profile?.last_name}</h3>
+                    <p className="text-secondary small">{profile?.email}</p>
                     <div className="badge mt-4" style={{ background: 'rgba(99, 102, 241, 0.1)', color: 'var(--accent-primary)', padding: '4px 12px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 600 }}>
-                        {profile.user_details.role.toUpperCase()}
+                        {profile?.role?.toUpperCase()}
                     </div>
                 </div>
 
@@ -163,27 +163,27 @@ const Profile = () => {
                         <div className="attr-item">
                             <label className="text-secondary small d-block">Geography</label>
                             <div className="flex flex-wrap gap-2 mt-1">
-                                {profile.geographies.map(g => <span key={Math.random()} className="pill" style={{ background: '#1f2937', color: '#fff', padding: '2px 10px', borderRadius: '4px', fontSize: '0.8rem' }}>{g}</span>)}
-                                {profile.geographies.length === 0 && <span className="text-secondary">Global</span>}
+                                {profile?.geographies?.map(g => <span key={Math.random()} className="pill" style={{ background: '#1f2937', color: '#fff', padding: '2px 10px', borderRadius: '4px', fontSize: '0.8rem' }}>{g}</span>)}
+                                {(profile?.geographies?.length === 0 || !profile?.geographies) && <span className="text-secondary">Global</span>}
                             </div>
                         </div>
                         <div className="attr-item">
                             <label className="text-secondary small d-block">Business Units</label>
                             <div className="flex flex-wrap gap-2 mt-1">
-                                {profile.business_units.map(b => <span key={Math.random()} className="pill" style={{ background: '#1f2937', color: '#fff', padding: '2px 10px', borderRadius: '4px', fontSize: '0.8rem' }}>{b}</span>)}
-                                {profile.business_units.length === 0 && <span className="text-secondary">Corporate</span>}
+                                {profile?.business_units?.map(b => <span key={Math.random()} className="pill" style={{ background: '#1f2937', color: '#fff', padding: '2px 10px', borderRadius: '4px', fontSize: '0.8rem' }}>{b}</span>)}
+                                {(profile?.business_units?.length === 0 || !profile?.business_units) && <span className="text-secondary">Corporate</span>}
                             </div>
                         </div>
                         <div className="attr-item">
                             <label className="text-secondary small d-block">Domains</label>
                             <div className="flex flex-wrap gap-2 mt-1">
-                                {profile.domains.map(d => <span key={Math.random()} className="pill" style={{ background: '#1f2937', color: '#fff', padding: '2px 10px', borderRadius: '4px', fontSize: '0.8rem' }}>{d}</span>)}
+                                {profile?.domains?.map(d => <span key={Math.random()} className="pill" style={{ background: '#1f2937', color: '#fff', padding: '2px 10px', borderRadius: '4px', fontSize: '0.8rem' }}>{d}</span>)}
                             </div>
                         </div>
                         <div className="attr-item">
                             <label className="text-secondary small d-block">Sub-Domains</label>
                             <div className="flex flex-wrap gap-2 mt-1">
-                                {profile.subdomains.map(s => <span key={Math.random()} className="pill" style={{ background: '#1f2937', color: '#fff', padding: '2px 10px', borderRadius: '4px', fontSize: '0.8rem' }}>{s}</span>)}
+                                {profile?.subdomains?.map(s => <span key={Math.random()} className="pill" style={{ background: '#1f2937', color: '#fff', padding: '2px 10px', borderRadius: '4px', fontSize: '0.8rem' }}>{s}</span>)}
                             </div>
                         </div>
                     </div>

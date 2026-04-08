@@ -1,59 +1,84 @@
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from .oracle_service import get_tables, get_filtered_data
+from .db_service import get_db_connection, fetch_tables, get_secured_data
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def db_connect(request):
+    """
+    Validates connection credentials and stores them in the session.
+    """
+    db_config = request.data
+    db_type = db_config.get('type')
+    
+    if not db_type:
+        return Response({"error": "Database type is required"}, status=400)
+
+    try:
+        # Attempt to connect to validate credentials
+        conn = get_db_connection(db_config)
+        if hasattr(conn, 'close'):
+            conn.close()
+            
+        # Store config in session (excluding password if you prefer, but needed for subsequent requests)
+        request.session['db_config'] = db_config
+        request.session.modified = True
+        
+        return Response({
+            "success": True,
+            "message": f"Successfully connected to {db_type.capitalize()} database",
+            "host": db_config.get('host')
+        })
+    except Exception as e:
+        return Response({
+            "success": False,
+            "error": str(e)
+        }, status=400)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def oracle_tables(request):
+def db_tables(request):
     """
-    Fetches all non-system tables from the real Oracle Database (Secure & Logged).
+    Fetches all tables for the currently connected database.
     """
+    db_config = request.session.get('db_config')
+    if not db_config:
+        return Response({"error": "No active database connection. Please connect first."}, status=401)
+
     try:
-        print(f"INFO: Fetching table list for user {request.user.email}")
-        tables = get_tables()
+        conn = get_db_connection(db_config)
+        tables = fetch_tables(conn, db_config['type'])
+        if hasattr(conn, 'close'):
+            conn.close()
+            
         return Response({
             "datasets": tables
         })
     except Exception as e:
-        print(f"ERROR: Failed to fetch tables: {str(e)}")
-        return Response({
-            "error": "Failed to fetch datasets from Oracle Database",
-            "details": str(e)
-        }, status=500)
+        return Response({"error": str(e)}, status=500)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def oracle_table_data(request, table_name):
+def db_table_data(request, table_name):
     """
-    Fetches filtered data from a real Oracle Database table (Hardened).
+    Fetches table data with security enforcement.
     """
+    db_config = request.session.get('db_config')
+    if not db_config:
+        return Response({"error": "No active database connection."}, status=401)
+
     try:
-        user = request.user
-        print(f"INFO: User {user.email} accessing table {table_name}")
-
-        # Basic SQL Injection protection: validate table name against permitted schemas
-        all_allowed_tables = get_tables()
-        if table_name not in all_allowed_tables:
-            print(f"WARNING: User {user.email} attempted to access unlisted table {table_name}")
-            return Response({"error": "Invalid table or unauthorized schema asset."}, status=403)
-
-        columns, data = get_filtered_data(user, table_name)
+        columns, data = get_secured_data(request.user, db_config, table_name)
         
+        message = ""
         if not data and columns:
-             return Response({
-                "columns": columns,
-                "data": [],
-                "message": "Access restricted by Row Security Groups (RSG)."
-            })
+            message = "Access restricted by Row Security Groups (RSG)."
 
         return Response({
             "columns": columns,
-            "data": data
+            "data": data,
+            "message": message
         })
     except Exception as e:
-        print(f"ERROR: Failed to fetch data for {table_name}: {str(e)}")
-        return Response({
-            "error": f"Failed to retrieve data for table {table_name}",
-            "details": str(e)
-        }, status=500)
+        return Response({"error": str(e)}, status=500)

@@ -10,6 +10,9 @@ from data_studio.oracle_service import get_oracle_connection
 from security.utils import filter_columns, apply_row_filter
 
 def execute_query(sql):
+    """
+    Executes a SQL query on the live Oracle database.
+    """
     conn = get_oracle_connection()
     if not conn:
         return [], []
@@ -24,7 +27,7 @@ def execute_query(sql):
         conn.close()
         return columns, data
     except Exception as e:
-        print(f"Error executing chat SQL: {e}")
+        print(f"❌ Chat Query Error: {e}")
         if conn: conn.close()
         return [], []
 
@@ -42,125 +45,69 @@ def generate_response(intent, data):
         "table": data
     }
 
+def save_message(session, role, content):
+    msg = ChatMessage(session=session, role=role)
+    msg.content = content
+    msg.save()
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_session(request):
+    session = ChatSession.objects.create(
+        user=request.user,
+        title="New Chat"
+    )
+    return Response({
+        "session_id": session.id
+    })
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_sessions(request):
     sessions = ChatSession.objects.filter(user=request.user).order_by('-created_at')
     data = [{"id": s.id, "title": s.title, "created_at": s.created_at} for s in sessions]
-    return Response({"sessions": data})
+    return Response(data)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def get_session_history(request, session_id):
+def get_session_messages(request, session_id):
     try:
         session = ChatSession.objects.get(id=session_id, user=request.user)
     except ChatSession.DoesNotExist:
         return Response({"error": "Session not found"}, status=404)
         
-    messages = session.messages.all()
-    history = []
-    for msg in messages:
-        if msg.role == 'user':
-            history.append({"role": "user", "text": msg.text})
-        else:
-            history.append({"role": "bot", "data": msg.data_payload})
-            
-    return Response({"session_id": session.id, "title": session.title, "history": history})
+    messages = session.messages.all().order_by('created_at')
+    data = [{"role": m.role, "content": m.content} for m in messages]
+    return Response(data)
+
+from .service import process_query
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def chat_api(request):
     user = request.user
     query = request.data.get("message", "").strip()
-    session_id = request.data.get("session_id", None)
+    session_id = request.data.get("session_id")
 
-    # Step 10.10: Session Management Logic
-    if not session_id or session_id == "new":
-        session = ChatSession.objects.create(user=user, title=query[:50] if query else "New Chat")
-    else:
-        try:
-            session = ChatSession.objects.get(id=session_id, user=user)
-        except ChatSession.DoesNotExist:
-            session = ChatSession.objects.create(user=user, title=query[:50] if query else "New Chat")
-
-    # Log user message
-    ChatMessage.objects.create(session=session, role='user', text=query)
-    
-    # Step 10.14: Log Activity
-    ActivityLog.objects.create(
-        user=user, 
-        action="Chat Query", 
-        details=f"Query: {query} | Session: {session.id}"
-    )
-
-    def log_bot_response(data_payload):
-        ChatMessage.objects.create(session=session, role='bot', data_payload=data_payload)
-        return Response({"session_id": session.id, "data": data_payload})
-
-    # Step 10.5: Recommendation Engine (If empty query)
-    if not query:
-        # Get authorized datasets from CSGs
-        csgs = user.csgs.all()
-        datasets = []
-        for csg in csgs:
-            datasets.extend(csg.datasets)
-        
-        datasets = list(set(datasets))
-        rec_text = "Available datasets for you:\n" + ("\n".join(f"• {d}" for d in datasets) if datasets else "⚠ No datasets found to create insights")
-        
-        return log_bot_response({
-            "summary": rec_text,
-            "chart": [],
-            "table": []
-        })
-
-    intent = detect_intent(query)
-    
-    # Get authorized datasets for "Access Denied" list (Step 10.6)
-    csgs = user.csgs.all()
-    allowed_list = []
-    for csg in csgs:
-        allowed_list.extend(csg.datasets)
-    allowed_list = list(set(allowed_list))
-    denied_msg = f"🚫 Access Denied\nYou can only access: {', '.join(allowed_list) if allowed_list else 'No datasets assigned'}"
-
-    if not intent:
-        return log_bot_response({
-            "summary": denied_msg,
-            "chart": [],
-            "table": []
-        })
-
-    sql = INTENT_SQL.get(intent)
-    if not sql:
-        return log_bot_response({
-            "summary": "🚫 Access Denied\nQuery not within predefined analytical scope.",
-            "chart": [],
-            "table": []
-        })
-
-    columns, data = execute_query(sql)
+    if not session_id:
+        return Response({"error": "session_id is required"}, status=400)
 
     try:
-        table_name = sql.upper().split("FROM")[1].strip().split()[0]
-    except Exception:
-        table_name = "UNKNOWN"
+        session = ChatSession.objects.get(id=session_id, user=user)
+    except ChatSession.DoesNotExist:
+        return Response({"error": "Session not found"}, status=404)
 
-    # Step 10.14: Log Dataset Access
-    ActivityLog.objects.create(
-        user=user, 
-        action="Dataset Access", 
-        details=f"Table: {table_name} accessed via Chat"
-    )
+    # Auto-title session if it's "New Chat" and this is the first message
+    if session.title == "New Chat" and query:
+        session.title = query[:50]
+        session.save()
 
-    data = secure_data(user, table_name, data)
+    # Save user message
+    save_message(session, "user", {"text": query})
     
-    if not data:
-        return log_bot_response({
-            "summary": f"🚫 Access Denied\nCorporate Security Policy (CSG/RSG) prevents viewing {table_name}.",
-            "chart": [],
-            "table": []
-        })
-
-    response_data = generate_response(intent, data)
-    return log_bot_response(response_data)
+    # Process through Seeded Engine
+    response_data = process_query(query)
+    
+    # Save bot response
+    save_message(session, "bot", response_data)
+    return Response(response_data)

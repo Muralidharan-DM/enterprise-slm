@@ -1,106 +1,183 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
+import API from '../services/api';
 import '../styles/Layout.css';
+
+// Sidebar menu configuration
+const getMenu = (role) => {
+    const isAdmin = role === 'admin';
+    return [
+        {
+            section: 'MAIN',
+            items: [
+                { name: 'Chat Assistant', path: '/chat', icon: '💬' },
+                ...(isAdmin ? [{ name: 'Data Studio', path: '/data-studio', icon: '📊' }] : []),
+            ]
+        },
+        ...(isAdmin ? [{
+            section: 'ORGANIZATION',
+            items: [
+                { name: 'User Management', path: '/users', icon: '👥' },
+                { name: 'Domains & Subdomains', path: '/domains', icon: '🌐' },
+                { name: 'Hierarchy Level', path: '/hierarchy', icon: '🏛️' },
+                { name: 'Geography', path: '/geography', icon: '🗺️' },
+                { name: 'Business Units', path: '/business-units', icon: '🏢' },
+            ]
+        }] : []),
+        ...(isAdmin ? [{
+            section: 'SECURITY',
+            items: [
+                { name: 'Column Security', path: '/security/csg', icon: '🛡️' },
+                { name: 'Row Security', path: '/security/rsg', icon: '🔒' },
+            ]
+        }] : []),
+        {
+            section: 'PROFILE',
+            items: [
+                { name: 'My Profile', path: '/profile', icon: '👤' },
+            ]
+        }
+    ];
+};
 
 const Layout = ({ children }) => {
     const navigate = useNavigate();
     const location = useLocation();
-    
-    // Theme Management
     const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
     const [profileData, setProfileData] = useState(null);
-    
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
     useEffect(() => {
         document.body.setAttribute('data-theme', theme);
         localStorage.setItem('theme', theme);
     }, [theme]);
 
-    const toggleTheme = () => {
-        setTheme(prev => prev === 'light' ? 'dark' : 'light');
-    };
+    const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
 
-    // User Management
-    const user = JSON.parse(localStorage.getItem("user"));
-    
+    const user = JSON.parse(localStorage.getItem('user'));
+
     useEffect(() => {
         if (!user && location.pathname !== '/') {
             navigate('/');
         } else if (user) {
             fetchMyProfile();
         }
-    }, [user, navigate, location]);
+    }, []);
 
     const fetchMyProfile = async () => {
         try {
-            const res = await API.get("users/me/");
+            const res = await API.get('users/me/');
             setProfileData(res.data);
         } catch (err) {
-            console.error("Failed to fetch sidebar profile", err);
+            console.error('Failed to fetch sidebar profile', err);
         }
     };
 
     const handleLogout = () => {
-        localStorage.removeItem("user");
+        localStorage.removeItem('user');
         navigate('/');
     };
 
-    if (!user) return null; // Or a loading spinner if needed before redirect
+    if (!user) return null;
+
+    const menu = getMenu(user.role);
 
     return (
         <div className="layout-container">
-            <aside className="layout-sidebar">
-                <div className="sidebar-header" onClick={() => navigate('/data-studio')} style={{ cursor: 'pointer' }}>
-                    <div className="logo-icon">📊</div>
-                    <h2 className="sidebar-title">Decision Minds</h2>
+            <aside className={`layout-sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
+                {/* Header */}
+                <div className="sidebar-header">
+                    <img src="/logo.png" alt="Decision Minds" className="sidebar-logo" />
+                    {!sidebarCollapsed && <h2 className="sidebar-title">Decision Minds</h2>}
                 </div>
-                
+
+                {/* Navigation */}
                 <nav className="sidebar-nav">
-                    <NavLink to="/chat" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-                        💬 Chat Assistant
-                    </NavLink>
-                    <NavLink to="/data-studio" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-                        📊 Data Studio
-                    </NavLink>
-                    <NavLink to="/users" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-                        👥 Users & Roles
-                    </NavLink>
-                    <NavLink to="/security/csg" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-                        🛡️ Column Security
-                    </NavLink>
-                    <NavLink to="/security/rsg" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-                        🔒 Row Security
-                    </NavLink>
-                    <NavLink to="/profile" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-                        👤 My Profile
-                    </NavLink>
+                    {menu.map((group) => (
+                        <div key={group.section} className="nav-section">
+                            {!sidebarCollapsed && (
+                                <span className="nav-section-header">{group.section}</span>
+                            )}
+                            {group.items.map((item) => (
+                                <NavLink
+                                    key={item.path}
+                                    to={item.path}
+                                    title={sidebarCollapsed ? item.name : ''}
+                                    className={({ isActive }) =>
+                                        `nav-item ${isActive ? 'active' : ''}`
+                                    }
+                                >
+                                    <span className="nav-icon">{item.icon}</span>
+                                    {!sidebarCollapsed && (
+                                        <span className="nav-label">{item.name}</span>
+                                    )}
+                                </NavLink>
+                            ))}
+                        </div>
+                    ))}
                 </nav>
-                
+
+                {/* Footer */}
                 <div className="sidebar-footer">
-                    <div className="user-profile" onClick={() => navigate('/profile')} style={{ cursor: 'pointer' }}>
+                    <div
+                        className="user-profile"
+                        onClick={() => navigate('/profile')}
+                        style={{ cursor: 'pointer' }}
+                    >
                         <div className="avatar">
                             {profileData?.profile_photo ? (
-                                <img src={profileData.profile_photo} alt="Avatar" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                                <img
+                                    src={profileData.profile_photo}
+                                    alt="Avatar"
+                                    style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                                />
                             ) : (
                                 user.email.charAt(0).toUpperCase()
                             )}
                         </div>
-                        <div className="user-info">
-                            <span className="user-email" title={user.email}>{user.email}</span>
-                            <span className="user-role">{user.role}</span>
-                        </div>
+                        {!sidebarCollapsed && (
+                            <div className="user-info">
+                                <span className="user-email" title={user.email}>{user.email}</span>
+                                <span className={`user-role-badge role-${user.role}`}>{user.role}</span>
+                            </div>
+                        )}
                     </div>
-                    
-                    <button className="theme-toggle-btn" onClick={toggleTheme}>
-                        {theme === 'light' ? '🌙 Switch to Dark Mode' : '☀️ Switch to Light Mode'}
-                    </button>
-                    
-                    <button className="logout-btn" onClick={handleLogout}>
-                        🚪 Logout
-                    </button>
+
+                    {!sidebarCollapsed && (
+                        <>
+                            <button className="theme-toggle-btn" onClick={toggleTheme}>
+                                {theme === 'light' ? '🌙 Dark Mode' : '☀️ Light Mode'}
+                            </button>
+                            <button className="logout-btn" onClick={handleLogout}>
+                                🚪 Logout
+                            </button>
+                        </>
+                    )}
+                    {sidebarCollapsed && (
+                        <button className="logout-btn icon-only" onClick={handleLogout} title="Logout">
+                            🚪
+                        </button>
+                    )}
                 </div>
             </aside>
-            
+
             <main className="layout-main">
+                <header className="main-header">
+                    <button 
+                        className="sidebar-toggle-btn" 
+                        onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                        title={sidebarCollapsed ? "Open Sidebar" : "Close Sidebar"}
+                    >
+                        ☰
+                    </button>
+                    <div className="header-breadcrumbs">
+                        <span className="breadcrumb-item">Decision Minds</span>
+                        <span className="breadcrumb-separator">/</span>
+                        <span className="breadcrumb-active">
+                            {location.pathname.split('/').filter(x => x).pop()?.replace(/-/g, ' ') || 'Dashboard'}
+                        </span>
+                    </div>
+                </header>
                 <div className="layout-content">
                     {children}
                 </div>

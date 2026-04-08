@@ -5,7 +5,7 @@ from security.utils import filter_columns, apply_row_filter
 
 def get_oracle_connection():
     """
-    Creates and returns a connection to the Oracle Database.
+    Creates and returns a connection to the Oracle Database using .env credentials.
     """
     try:
         # Use DSN string from environment variables
@@ -20,20 +20,16 @@ def get_oracle_connection():
             password=os.getenv("ORACLE_PASSWORD"),
             dsn=dsn
         )
+        print("✅ Oracle Connected Successfully")
         return connection
-    except cx_Oracle.Error as e:
-        print(f"Error connecting to Oracle: {e}")
+    except Exception as e:
+        print(f"❌ Oracle Connection Error: {str(e)}")
         return None
 
 def get_tables():
     """
-    Fetches all non-system tables from the Oracle database (Cached).
+    Fetches all non-system tables from the Oracle database.
     """
-    cache_key = "oracle_tables_list"
-    cached_tables = cache.get(cache_key)
-    if cached_tables:
-        return cached_tables
-
     conn = get_oracle_connection()
     if not conn:
         return []
@@ -53,9 +49,7 @@ def get_tables():
         ]
         cursor.close()
         conn.close()
-        
-        # Cache for 5 minutes
-        cache.set(cache_key, tables, timeout=300)
+        print("Tables fetched:", tables)
         return tables
     except Exception as e:
         print(f"Error fetching tables: {e}")
@@ -72,16 +66,10 @@ def get_table_data(table_name):
     
     try:
         cursor = conn.cursor()
-        # Safety check: ensure table_name doesn't contain malicious characters 
-        # (though in this context it comes from get_tables or validated UI selection)
-        
-        # Use FETCH FIRST 50 ROWS ONLY for better performance in explorer views
         query = f"SELECT * FROM {table_name} FETCH FIRST 50 ROWS ONLY"
         cursor.execute(query)
 
-        # Extract column names from cursor description
         columns = [col[0] for col in cursor.description]
-
         rows = cursor.fetchall()
         data = [
             dict(zip(columns, row))
@@ -102,14 +90,8 @@ def get_filtered_data(user, table_name):
     """
     columns, data = get_table_data(table_name)
 
-    # 🔗 Step 6.5: APPLY SECURITY
     if data:
-        print(f"DEBUG - TABLE: {table_name}")
-        print(f"DEBUG - INITIAL ROWS: {len(data)}")
-        
         data = apply_row_filter(user, table_name, data)
         data = filter_columns(user, table_name, data)
-        
-        print(f"DEBUG - FILTERED ROWS: {len(data)}")
 
     return columns, data

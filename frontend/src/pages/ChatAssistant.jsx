@@ -45,6 +45,16 @@ const ChatAnalytics = () => {
     const dashboardRef = useRef(null);
     const isDragging = useRef(false);
 
+    // DB Connection State
+    const [dbConfig, setDbConfig] = useState(null);
+
+    useEffect(() => {
+        const savedConfig = localStorage.getItem('db_config');
+        if (savedConfig) {
+            setDbConfig(JSON.parse(savedConfig));
+        }
+    }, []);
+
     const startDragging = (e) => {
         isDragging.current = true;
         document.body.style.cursor = 'col-resize';
@@ -177,7 +187,8 @@ const ChatAnalytics = () => {
         try {
             const res = await API.post("chat/query/", {
                 message: userMsg,
-                session_id: activeSessionId
+                session_id: activeSessionId,
+                db_config: dbConfig // Pass dynamic connection info
             });
             
             // Remove loading message
@@ -227,74 +238,55 @@ const ChatAnalytics = () => {
         { label: "📈 Top Products", query: "top selling products" }
     ];
 
-    const renderChart = () => {
-        if (!analyticsPayload?.chart || analyticsPayload.chart.length === 0) return null;
+    const ChartComponent = ({ chart }) => {
+        const { type, title, x, y, labels, values, color } = chart;
         
-        const chartData = analyticsPayload.chart;
-        const keys = Object.keys(chartData[0]);
-        const xKey = keys[0];
-        const yKeys = keys.slice(1).filter(k => typeof chartData[0][k] === 'number');
-        
-        if (yKeys.length === 0) return <p>Data structure incompatible with visualization.</p>;
-
-        // STEP 10.12: AUTO CHART SELECTION LOGIC
-        let chartType = 'bar';
-        
-        // Time series detection
-        const firstX = String(chartData[0][xKey]).toLowerCase();
-        if (firstX.match(/jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|20\d{2}|date|month|year/)) {
-            chartType = 'line';
-        }
-        // Distribution detection (Pie)
-        else if (chartData.length >= 2 && chartData.length <= 6 && yKeys.length === 1) {
-            chartType = 'pie';
-        }
+        // Transform data for Recharts
+        const chartData = type === 'pie' 
+            ? labels.map((l, i) => ({ name: l, value: values[i] }))
+            : x.map((v, i) => ({ name: v, val: y[i] }));
 
         return (
-            <div ref={chartRef} style={{ width: '100%', height: 350 }}>
-                <ResponsiveContainer>
-                    {chartType === 'line' ? (
-                        <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                            <XAxis dataKey={xKey} stroke="#9ca3af" tick={{fontSize: 12}} />
-                            <YAxis stroke="#9ca3af" tick={{fontSize: 12}} />
-                            <Tooltip contentStyle={{ backgroundColor: '#111827', border: '1px solid #374151', borderRadius: '8px' }} />
-                            <Legend />
-                            {yKeys.map((k, i) => (
-                                <Line key={k} type="monotone" dataKey={k} stroke={COLORS[i % COLORS.length]} strokeWidth={2} dot={{ r: 4 }} />
-                            ))}
-                        </LineChart>
-                    ) : chartType === 'pie' ? (
-                        <PieChart>
-                            <Pie
-                                data={chartData}
-                                dataKey={yKeys[0]}
-                                nameKey={xKey}
-                                cx="50%"
-                                cy="50%"
-                                outerRadius={120}
-                                label={({name, percent}) => `${name} ${(percent * 100).toFixed(0)}%`}
-                            >
-                                {chartData.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                ))}
-                            </Pie>
-                            <Tooltip contentStyle={{ backgroundColor: '#111827', border: '1px solid #374151', borderRadius: '8px' }} />
-                            <Legend />
-                        </PieChart>
-                    ) : (
-                        <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                            <XAxis dataKey={xKey} stroke="#9ca3af" tick={{fontSize: 12}} />
-                            <YAxis stroke="#9ca3af" tick={{fontSize: 12}} />
-                            <Tooltip contentStyle={{ backgroundColor: '#111827', border: '1px solid #374151', borderRadius: '8px' }} />
-                            <Legend />
-                            {yKeys.map((k, i) => (
-                                <Bar key={k} dataKey={k} fill={COLORS[i % COLORS.length]} radius={[4, 4, 0, 0]} />
-                            ))}
-                        </BarChart>
-                    )}
-                </ResponsiveContainer>
+            <div className="card chart-card">
+                <h3>{title || "Analytics Visualization"}</h3>
+                <div style={{ width: '100%', height: 300, marginTop: '1rem' }}>
+                    <ResponsiveContainer>
+                        {type === 'bar' ? (
+                            <BarChart data={chartData}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                                <XAxis dataKey="name" stroke="#9ca3af" fontSize={12} />
+                                <YAxis stroke="#9ca3af" fontSize={12} />
+                                <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px' }} />
+                                <Bar dataKey="val" fill={color || COLORS[0]} radius={[4, 4, 0, 0]} />
+                            </BarChart>
+                        ) : type === 'line' ? (
+                            <LineChart data={chartData}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                                <XAxis dataKey="name" stroke="#9ca3af" fontSize={12} />
+                                <YAxis stroke="#9ca3af" fontSize={12} />
+                                <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px' }} />
+                                <Line type="monotone" dataKey="val" stroke={color || COLORS[2]} strokeWidth={3} dot={{ r: 4 }} />
+                            </LineChart>
+                        ) : (
+                            <PieChart>
+                                <Pie
+                                    data={chartData}
+                                    dataKey="value"
+                                    nameKey="name"
+                                    cx="50%"
+                                    cy="50%"
+                                    outerRadius={80}
+                                    label={({name, percent}) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                >
+                                    {chartData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px' }} />
+                            </PieChart>
+                        )}
+                    </ResponsiveContainer>
+                </div>
             </div>
         );
     };
@@ -402,32 +394,45 @@ const ChatAnalytics = () => {
 
             {/* PANEL 3: ANALYTICS CANVAS */}
             <div className="analytics-canvas" style={{ flex: 1, minWidth: 0 }}>
+                {/* Connection Status Banner */}
+                <div className="connection-banner">
+                    <div className="conn-info">
+                        {dbConfig ? (
+                            <>
+                                <span className="conn-dot success"></span>
+                                <span className="conn-text">Connected: <strong>{dbConfig.type.toUpperCase()}</strong> ({dbConfig.host})</span>
+                            </>
+                        ) : (
+                            <>
+                                <span className="conn-dot error"></span>
+                                <span className="conn-text">No Database Connected. <a href="/chat">Connect now</a></span>
+                            </>
+                        )}
+                    </div>
+                </div>
+
                 {analyticsPayload ? (
-                    <>
+                    <div className="canvas-content" style={{ padding: '0 1rem 2rem' }}>
                         <div className="canvas-header">
                             <h2>Intelligence Canvas</h2>
-                            {analyticsPayload.chart && analyticsPayload.chart.length > 0 && (
-                                <button className="download-btn" onClick={downloadChart}>
-                                    📥 Download SVG
-                                </button>
-                            )}
+                            <button className="download-btn" onClick={downloadChart}>
+                                📥 Export Workspace
+                            </button>
                         </div>
 
                         <div className="card">
-                            <h3>🤖 Summary</h3>
+                            <h3>🤖 Executive Summary</h3>
                             <div className="analytics-summary">{analyticsPayload.summary}</div>
                         </div>
 
-                        {analyticsPayload.chart && analyticsPayload.chart.length > 0 && (
-                            <div className="card">
-                                <h3>📈 Chart Visualization</h3>
-                                {renderChart()}
-                            </div>
-                        )}
+                        {/* RENDER MULTIPLE CHARTS */}
+                        {analyticsPayload.charts && analyticsPayload.charts.map((chart, i) => (
+                            <ChartComponent key={i} chart={chart} />
+                        ))}
 
                         {analyticsPayload.table && analyticsPayload.table.length > 0 && (
                             <div className="card">
-                                <h3>📋 Data Records ({analyticsPayload.table.length})</h3>
+                                <h3>📋 Data Discovery ({analyticsPayload.table.length} rows)</h3>
                                 <div style={{ overflowX: 'auto', maxHeight: '500px' }}>
                                     <table className="chat-table">
                                         <thead>
@@ -446,7 +451,7 @@ const ChatAnalytics = () => {
                                 </div>
                             </div>
                         )}
-                    </>
+                    </div>
                 ) : (
                     <div className="empty-canvas">
                         <h2>Analytics Dashboard</h2>

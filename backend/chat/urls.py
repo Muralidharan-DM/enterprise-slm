@@ -1,8 +1,9 @@
 from django.urls import path
-from .views import chat_api, get_sessions, get_session_history
+from . import views
 
 urlpatterns = [
-    path('query/', chat_api, name='chat_api'),
-    path('sessions/', get_sessions, name='get_sessions'),
-    path('session/<int:session_id>/', get_session_history, name='get_session_history'),
+    path('query/', views.chat_api, name='chat_api'),
+    path('session/create/', views.create_session, name='create_session'),
+    path('sessions/', views.get_sessions, name='get_sessions'),
+    path('session/<int:session_id>/', views.get_session_messages, name='get_session_messages'),
 ]

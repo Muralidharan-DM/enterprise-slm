@@ -153,5 +153,15 @@ INTENT_SQL = {
         FROM HR.EMPLOYEES
         GROUP BY department_id
         ORDER BY total_budget DESC
-    """
+    """,
+    
+    # Broad Intent Wrappers for High Reliability (Step 11.3)
+    "inventory": "SELECT warehouse_id, SUM(quantity_on_hand) AS total_stock FROM OE.INVENTORIES GROUP BY warehouse_id",
+    "customers": "SELECT customer_id, cust_first_name, cust_last_name, credit_limit FROM OE.CUSTOMERS FETCH FIRST 50 ROWS ONLY",
+    "orders": "SELECT order_id, order_date, order_total FROM OE.ORDERS ORDER BY order_date DESC FETCH FIRST 50 ROWS ONLY",
+    "revenue": "SELECT sum(order_total) as Total_Revenue, count(order_id) as Total_Orders FROM OE.ORDERS",
+    "products": "SELECT product_id, product_name, list_price FROM OE.PRODUCT_INFORMATION FETCH FIRST 50 ROWS ONLY",
+    "employees": "SELECT employee_id, first_name, last_name, email, salary FROM HR.EMPLOYEES FETCH FIRST 50 ROWS ONLY",
+    "departments": "SELECT department_id, department_name, manager_id FROM HR.DEPARTMENTS",
+    "default": "SELECT sum(order_total) as Total_Revenue, count(order_id) as Total_Orders FROM OE.ORDERS"
 }

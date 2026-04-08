@@ -1,8 +1,8 @@
 from django.urls import path
-from .views import oracle_tables, oracle_table_data
+from . import views
 
 urlpatterns = [
-    # Real Oracle Data Routes
-    path('tables/', oracle_tables, name='oracle_tables'),
-    path('table/<str:table_name>/', oracle_table_data, name='oracle_table_data'),
+    path('connect/', views.db_connect, name='db_connect'),
+    path('tables/', views.db_tables, name='db_tables'),
+    path('table/<str:table_name>/', views.db_table_data, name='db_table_data'),
 ]

@@ -30,6 +30,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
     username = serializers.ReadOnlyField(source='user.username')
     email = serializers.ReadOnlyField(source='user.email')
     role = serializers.ReadOnlyField(source='user.role')
+    first_name = serializers.ReadOnlyField(source='user.first_name')
+    last_name = serializers.ReadOnlyField(source='user.last_name')
     
     geographies = serializers.SlugRelatedField(
         many=True, slug_field='name', queryset=Geography.objects.all()
