@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import API from '../services/api';
+import toast from 'react-hot-toast';
 import '../styles/CSG.css'; // Reuse CSG styles as requested
 
 const RSG = () => {
@@ -90,10 +91,10 @@ const RSG = () => {
             }
             setIsWizardOpen(false);
             fetchGroups();
-            alert("RSG Saved successfully!");
+            toast.success("RSG Saved successfully!");
         } catch (err) {
             console.error("Error saving RSG", err);
-            alert("Failed to save RSG.");
+            toast.error("Failed to save RSG.");
         }
     };
 
@@ -119,25 +120,27 @@ const RSG = () => {
 
     return (
         <div className="csg-container">
-            <img src="/logo.png" alt="Decision Minds" style={{ width: '60px', marginBottom: '1rem' }} />
-            <div className="csg-header">
-                <h1>Row Security Groups (RSG)</h1>
-                <button className="add-btn" onClick={() => {
+            <div className="flex justify-between items-center mb-8">
+                <div>
+                    <h1 className="page-title">Row Security Groups (RSG)</h1>
+                    <p className="text-secondary">Define record-level visibility policies using dynamic column filters.</p>
+                </div>
+                <button className="btn-primary" onClick={() => {
                     setFormData({ id: null, name: "", domains: [], subdomains: [], filters: {}, users: [] });
                     setCurrentStep(1);
                     setIsWizardOpen(true);
-                }}>+ Add New Group</button>
+                }}>+ Create RSG</button>
             </div>
 
             <div className="csg-grid">
                 {groups.map(group => (
-                    <div key={group.id} className="csg-card">
-                        <h3>{group.name}</h3>
-                        <div className="csg-meta">
-                            <p>Filters: {Object.keys(group.filters).join(', ') || 'None'}</p>
-                            <p>Users: {group.users.length}</p>
+                    <div key={group.id} className="card">
+                        <h3 className="mb-2">{group.name}</h3>
+                        <div className="mb-4">
+                            <div className="text-secondary small mb-1">Filters: {Object.keys(group.filters).join(', ') || 'None'}</div>
+                            <div className="text-secondary small">👥 {group.users.length} Users Assigned</div>
                         </div>
-                        <button className="view-btn" onClick={() => handleEdit(group)}>View / Edit</button>
+                        <button className="btn-primary" style={{ width: '100%', fontSize: '0.9rem', padding: '6px' }} onClick={() => handleEdit(group)}>View / Edit</button>
                     </div>
                 ))}
             </div>
@@ -247,11 +250,11 @@ const RSG = () => {
                         )}
 
                         <div className="modal-actions">
-                            {currentStep > 1 && <button className="cancel-btn" onClick={() => setCurrentStep(currentStep - 1)}>Back</button>}
+                            {currentStep > 1 && <button className="btn-secondary" onClick={() => setCurrentStep(currentStep - 1)}>Back</button>}
                             {currentStep < 3 ? (
-                                <button className="save-btn" onClick={() => setCurrentStep(currentStep + 1)}>Next</button>
+                                <button className="btn-primary" onClick={() => setCurrentStep(currentStep + 1)}>Next Step</button>
                             ) : (
-                                <button className="save-btn" onClick={handleSubmit}>Save Group</button>
+                                <button className="btn-primary" onClick={handleSubmit}>Save RSG Policy</button>
                             )}
                         </div>
                     </div>

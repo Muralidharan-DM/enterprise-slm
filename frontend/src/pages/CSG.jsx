@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import API from '../services/api';
+import toast from 'react-hot-toast';
 import '../styles/CSG.css';
 
 const CSG = () => {
@@ -103,10 +104,10 @@ const CSG = () => {
             }
             setIsWizardOpen(false);
             fetchGroups();
-            alert("CSG Saved successfully!");
+            toast.success("CSG Saved successfully!");
         } catch (err) {
             console.error("Error saving CSG", err);
-            alert("Failed to save CSG.");
+            toast.error("Failed to save CSG.");
         }
     };
 
@@ -136,25 +137,27 @@ const CSG = () => {
 
     return (
         <div className="csg-container">
-            <img src="/logo.png" alt="Decision Minds" style={{ width: '60px', marginBottom: '1rem' }} />
-            <div className="csg-header">
-                <h1>Column Security Groups</h1>
-                <button className="add-btn" onClick={() => {
+            <div className="flex justify-between items-center mb-8">
+                <div>
+                    <h1 className="page-title">Column Security Groups</h1>
+                    <p className="text-secondary">Define field-level visibility policies for datasets.</p>
+                </div>
+                <button className="btn-primary" onClick={() => {
                     setFormData({ id: null, name: "", domains: [], subdomains: [], datasets: [], columns: {}, users: [] });
                     setCurrentStep(1);
                     setIsWizardOpen(true);
-                }}>+ Add New Group</button>
+                }}>+ Create CSG</button>
             </div>
 
             <div className="csg-grid">
                 {groups.map(group => (
-                    <div key={group.id} className="csg-card">
-                        <h3>{group.name}</h3>
-                        <div className="csg-meta">
-                            <p>Datasets: {group.datasets.length}</p>
-                            <p>Users: {group.users.length}</p>
+                    <div key={group.id} className="card">
+                        <h3 className="mb-2">{group.name}</h3>
+                        <div className="flex gap-4 mb-4">
+                            <span className="text-secondary small">📦 {group.datasets.length} Datasets</span>
+                            <span className="text-secondary small">👥 {group.users.length} Users</span>
                         </div>
-                        <button className="view-btn" onClick={() => handleEdit(group)}>View / Edit</button>
+                        <button className="btn-primary" style={{ width: '100%', fontSize: '0.9rem', padding: '6px' }} onClick={() => handleEdit(group)}>View / Edit</button>
                     </div>
                 ))}
             </div>
@@ -254,11 +257,11 @@ const CSG = () => {
                         )}
 
                         <div className="modal-actions">
-                            {currentStep > 1 && <button className="cancel-btn" onClick={() => setCurrentStep(currentStep - 1)}>Back</button>}
+                            {currentStep > 1 && <button className="btn-secondary" onClick={() => setCurrentStep(currentStep - 1)}>Back</button>}
                             {currentStep < 3 ? (
-                                <button className="save-btn" onClick={() => setCurrentStep(currentStep + 1)}>Next</button>
+                                <button className="btn-primary" onClick={() => setCurrentStep(currentStep + 1)}>Next Step</button>
                             ) : (
-                                <button className="save-btn" onClick={handleSubmit}>Save Group</button>
+                                <button className="btn-primary" onClick={handleSubmit}>Save Policy</button>
                             )}
                         </div>
                     </div>

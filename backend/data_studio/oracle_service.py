@@ -1,4 +1,6 @@
 import cx_Oracle
+import os
+from django.core.cache import cache
 from security.utils import filter_columns, apply_row_filter
 
 def get_oracle_connection():
@@ -6,16 +8,16 @@ def get_oracle_connection():
     Creates and returns a connection to the Oracle Database.
     """
     try:
-        # Use DSN string for flexible connection configuration
+        # Use DSN string from environment variables
         dsn = cx_Oracle.makedsn(
-            "192.168.0.205",   # OR "DESKTOP-DVT6ANV"
-            1521,
-            service_name="xepdb1"
+            os.getenv("ORACLE_HOST"),
+            int(os.getenv("ORACLE_PORT", 1521)),
+            service_name=os.getenv("ORACLE_SERVICE")
         )
 
         connection = cx_Oracle.connect(
-            user="SYSTEM",
-            password="User@123",
+            user=os.getenv("ORACLE_USER"),
+            password=os.getenv("ORACLE_PASSWORD"),
             dsn=dsn
         )
         return connection
@@ -25,15 +27,19 @@ def get_oracle_connection():
 
 def get_tables():
     """
-    Fetches all non-system tables from the Oracle database.
+    Fetches all non-system tables from the Oracle database (Cached).
     """
+    cache_key = "oracle_tables_list"
+    cached_tables = cache.get(cache_key)
+    if cached_tables:
+        return cached_tables
+
     conn = get_oracle_connection()
     if not conn:
         return []
     
     try:
         cursor = conn.cursor()
-        # Query all_tables but exclude common system schemas
         cursor.execute("""
             SELECT owner, table_name
             FROM all_tables
@@ -47,6 +53,9 @@ def get_tables():
         ]
         cursor.close()
         conn.close()
+        
+        # Cache for 5 minutes
+        cache.set(cache_key, tables, timeout=300)
         return tables
     except Exception as e:
         print(f"Error fetching tables: {e}")

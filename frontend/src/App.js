@@ -1,91 +1,47 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate, Link } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { Toaster } from 'react-hot-toast';
 import Login from "./pages/Login";
 import UserManagement from "./pages/UserManagement";
 import CSG from "./pages/CSG";
 import RSG from "./pages/RSG";
 import DataStudio from "./pages/DataStudio";
-
-const Dashboard = () => {
-  const user = JSON.parse(localStorage.getItem("user"));
-  
-  if (!user) {
-    return <Navigate to="/" />;
-  }
-
-  return (
-    <div style={{ padding: "2rem", fontFamily: "Inter, sans-serif" }}>
-      <img src="/logo.png" alt="Decision Minds" style={{ width: '60px', marginBottom: '1rem' }} />
-      <h1>Dashboard</h1>
-      <p>Welcome, {user.email}!</p>
-      <p>Role: <strong>{user.role}</strong></p>
-      
-      <div style={{ marginTop: "2rem", display: "flex", gap: "1.2rem", flexWrap: "wrap" }}>
-        <Link to="/users" style={{ 
-          padding: "0.85rem 1.7rem", 
-          background: "#1a2a6c", 
-          color: "white", 
-          textDecoration: "none", 
-          borderRadius: "8px",
-          fontWeight: "600"
-        }}>
-          Manage Users
-        </Link>
-        
-        <Link to="/security/csg" style={{ 
-          padding: "0.85rem 1.7rem", 
-          background: "#b21f1f", 
-          color: "white", 
-          textDecoration: "none", 
-          borderRadius: "8px",
-          fontWeight: "600"
-        }}>
-          Column Security (CSG)
-        </Link>
-
-        <Link to="/security/rsg" style={{ 
-          padding: "0.85rem 1.7rem", 
-          background: "#fdbb2d", 
-          color: "#1a2a6c", 
-          textDecoration: "none", 
-          borderRadius: "8px",
-          fontWeight: "600"
-        }}>
-          Row Security (RSG)
-        </Link>
-        
-        <Link to="/data-studio" style={{ 
-          padding: "0.85rem 1.7rem", 
-          background: "#4facfe", 
-          color: "white", 
-          textDecoration: "none", 
-          borderRadius: "8px",
-          fontWeight: "600"
-        }}>
-          Data Studio Explorer
-        </Link>
-
-        <button onClick={() => {
-          localStorage.removeItem("user");
-          window.location.href = "/";
-        }} style={{ padding: "0.85rem 1.7rem", cursor: "pointer", borderRadius: "8px", background: "#f0f0f0", border: "1px solid #ddd" }}>
-          Logout
-        </button>
-      </div>
-    </div>
-  );
-};
+import ChatAnalytics from "./pages/ChatAnalytics";
+import Profile from "./pages/Profile";
+import Layout from "./components/Layout";
 
 function App() {
+  const ProtectedRoute = ({ children }) => {
+    return <Layout>{children}</Layout>;
+  };
+
   return (
     <BrowserRouter>
+      <Toaster position="top-right" toastOptions={{ duration: 3000, style: { background: '#1f2937', color: '#fff' }}} />
       <Routes>
         <Route path="/" element={<Login />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/users" element={<UserManagement />} />
-        <Route path="/security/csg" element={<CSG />} />
-        <Route path="/security/rsg" element={<RSG />} />
-        <Route path="/data-studio" element={<DataStudio />} />
+        
+        {/* Redirect /dashboard to new main interface */}
+        <Route path="/dashboard" element={<Navigate to="/data-studio" replace />} />
+        
+        <Route path="/data-studio" element={
+          <ProtectedRoute><DataStudio /></ProtectedRoute>
+        } />
+        <Route path="/chat" element={
+          <ProtectedRoute><ChatAnalytics /></ProtectedRoute>
+        } />
+        <Route path="/users" element={
+          <ProtectedRoute><UserManagement /></ProtectedRoute>
+        } />
+        <Route path="/security/csg" element={
+          <ProtectedRoute><CSG /></ProtectedRoute>
+        } />
+        <Route path="/security/rsg" element={
+          <ProtectedRoute><RSG /></ProtectedRoute>
+        } />
+        <Route path="/profile" element={
+          <ProtectedRoute><Profile /></ProtectedRoute>
+        } />
       </Routes>
     </BrowserRouter>
   );

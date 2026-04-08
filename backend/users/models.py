@@ -55,3 +55,12 @@ class UserProfile(models.Model):
 
     def __str__(self):
         return f"{self.user.email} Profile"
+
+class ActivityLog(models.Model):
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="activities")
+    action = models.CharField(max_length=255) # e.g., "Login", "Chat Query", "Dataset Access"
+    details = models.TextField(blank=True, null=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.email if self.user else 'System'} - {self.action} @ {self.timestamp}"

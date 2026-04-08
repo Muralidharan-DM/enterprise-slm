@@ -2,7 +2,7 @@ from django.contrib.auth import authenticate
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from .models import User, UserProfile, Geography, BusinessUnit, Domain, SubDomain
+from .models import User, UserProfile, Geography, BusinessUnit, Domain, SubDomain, ActivityLog
 from .serializers import (
     UserSerializer, UserProfileSerializer, 
     GeographySerializer, BusinessUnitSerializer, 
@@ -87,3 +87,52 @@ def get_master_data(request):
             {"name": s.name, "domain": s.domain.name} for s in subs
         ]
     })
+
+@api_view(['GET', 'PUT'])
+@permission_classes([IsAuthenticated])
+def my_profile(request):
+    profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    
+    if request.method == 'GET':
+        serializer = UserProfileSerializer(profile)
+        return Response(serializer.data)
+    
+    if request.method == 'PUT':
+        # Name update (AbstractUser)
+        user = request.user
+        if "first_name" in request.data: user.first_name = request.data["first_name"]
+        if "last_name" in request.data: user.last_name = request.data["last_name"]
+        if "password" in request.data and request.data["password"]:
+            user.set_password(request.data["password"])
+        user.save()
+
+        # Photo upload (Step 10.17)
+        if "profile_photo" in request.FILES:
+            profile.profile_photo = request.FILES["profile_photo"]
+        
+        profile.save()
+        
+        # Log this edit logic (Step 10.14)
+        ActivityLog.objects.create(
+            user=user,
+            action="Profile Update",
+            details="User updated personal profile details/photo"
+        )
+        
+        return Response({"message": "Profile updated", "data": UserProfileSerializer(profile).data})
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_audit_logs(request):
+    # Only admins can view audit logs (Step 10.14)
+    if request.user.role != 'admin':
+        return Response({"error": "Admin access required"}, status=403)
+        
+    logs = ActivityLog.objects.all().order_by('-timestamp')[:100]
+    data = [{
+        "user": l.user.email if l.user else "System",
+        "action": l.action,
+        "details": l.details,
+        "timestamp": l.timestamp
+    } for l in logs]
+    return Response(data)

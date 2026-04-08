@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import API from '../services/api';
+import toast from 'react-hot-toast';
 import '../styles/UserManagement.css';
 
 const UserManagement = () => {
@@ -87,10 +88,10 @@ const UserManagement = () => {
             });
             setIsModalOpen(false);
             fetchUsers();
-            alert("User updated successfully!");
+            toast.success("User updated successfully!");
         } catch (err) {
             console.error("Error updating user", err);
-            alert("Failed to update user.");
+            toast.error("Failed to update user.");
         }
     };
 
@@ -101,11 +102,11 @@ const UserManagement = () => {
 
     return (
         <div className="user-management-container">
-            <img src="/logo.png" alt="Decision Minds" style={{ width: '60px', marginBottom: '1rem' }} />
-            <h1>User Management</h1>
-            <p>Manage geographies, domains, and business units for enterprise users.</p>
+            <h1 className="page-title">User Management</h1>
+            <p className="text-secondary mb-8">Manage geographies, domains, and business units for enterprise users.</p>
 
-            <table className="user-table">
+            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+                <table className="enterprise-table">
                 <thead>
                     <tr>
                         <th>Email</th>
@@ -123,12 +124,13 @@ const UserManagement = () => {
                             <td>{user.domains.join(', ') || 'None'}</td>
                             <td>{user.geographies.join(', ') || 'None'}</td>
                             <td>
-                                <button className="edit-btn" onClick={() => handleEdit(user)}>Edit</button>
+                                <button className="btn-primary" style={{ padding: '4px 12px', fontSize: '0.85rem' }} onClick={() => handleEdit(user)}>Edit</button>
                             </td>
                         </tr>
                     ))}
                 </tbody>
-            </table>
+                </table>
+            </div>
 
             {isModalOpen && (
                 <div className="modal-overlay">
@@ -213,8 +215,8 @@ const UserManagement = () => {
                         </div>
 
                         <div className="modal-actions">
-                            <button className="cancel-btn" onClick={() => setIsModalOpen(false)}>Cancel</button>
-                            <button className="save-btn" onClick={handleSave}>Save Changes</button>
+                            <button className="btn-secondary" onClick={() => setIsModalOpen(false)}>Cancel</button>
+                            <button className="btn-primary" onClick={handleSave}>Save Changes</button>
                         </div>
                     </div>
                 </div>

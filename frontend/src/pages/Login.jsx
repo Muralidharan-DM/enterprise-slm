@@ -87,24 +87,16 @@ function Login() {
           display: flex;
           align-items: center;
           justify-content: center;
-          background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
-          background-size: 400% 400%;
-          animation: gradientBG 15s ease infinite;
+          background: var(--bg-app);
           font-family: 'Inter', system-ui, -apple-system, sans-serif;
         }
 
-        @keyframes gradientBG {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-
         .login-card {
-          background: rgba(255, 255, 255, 0.95);
-          backdrop-filter: blur(10px);
+          background: var(--bg-panel);
           padding: 3rem;
-          border-radius: 12px;
-          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+          border-radius: var(--radius-lg);
+          box-shadow: var(--shadow-md);
+          border: 1px solid var(--border-color);
           width: 100%;
           max-width: 400px;
         }
@@ -115,14 +107,14 @@ function Login() {
         }
 
         .login-header h2 {
-          color: #1a2a6c;
+          color: var(--text-primary);
           margin-bottom: 0.5rem;
           font-size: 1.8rem;
           font-weight: 700;
         }
 
         .login-header p {
-          color: #666;
+          color: var(--text-secondary);
           font-size: 0.9rem;
         }
 
@@ -135,21 +127,23 @@ function Login() {
           margin-bottom: 0.5rem;
           font-size: 0.85rem;
           font-weight: 600;
-          color: #333;
+          color: var(--text-secondary);
         }
 
         .input-group input {
           width: 100%;
           padding: 0.75rem;
-          border: 1px solid #ddd;
-          border-radius: 6px;
+          background-color: var(--bg-app);
+          border: 1px solid var(--border-color);
+          color: var(--text-primary);
+          border-radius: var(--radius-md);
           font-size: 0.95rem;
           transition: border-color 0.3s;
         }
 
         .input-group input:focus {
           outline: none;
-          border-color: #b21f1f;
+          border-color: var(--accent-primary);
         }
 
         .password-input {
@@ -163,36 +157,40 @@ function Login() {
           transform: translateY(-50%);
           background: none;
           border: none;
-          color: #666;
+          color: var(--text-secondary);
           font-size: 0.75rem;
           cursor: pointer;
           font-weight: 600;
         }
+        
+        .toggle-password:hover {
+          color: var(--text-primary);
+        }
 
         .error-message {
-          background: #ffe6e6;
-          color: #b21f1f;
+          background: rgba(216, 76, 53, 0.1);
+          color: var(--accent-danger);
           padding: 0.75rem;
-          border-radius: 6px;
+          border-radius: var(--radius-md);
           margin-bottom: 1.5rem;
           font-size: 0.85rem;
-          border: 1px solid #ffcccc;
+          border: 1px solid rgba(216, 76, 53, 0.3);
         }
 
         .login-button {
           width: 100%;
           padding: 0.85rem;
-          background: #1a2a6c;
+          background: var(--accent-primary);
           color: white;
           border: none;
-          border-radius: 6px;
+          border-radius: var(--radius-md);
           font-weight: 600;
           cursor: pointer;
           transition: background 0.3s, transform 0.2s;
         }
 
         .login-button:hover {
-          background: #0d1a4d;
+          background: var(--accent-primary-hover);
         }
 
         .login-button:active {
@@ -200,7 +198,8 @@ function Login() {
         }
 
         .login-button:disabled {
-          background: #ccc;
+          background: var(--bg-panel-hover);
+          color: var(--text-secondary);
           cursor: not-allowed;
         }
 
@@ -208,7 +207,7 @@ function Login() {
           margin-top: 2rem;
           text-align: center;
           font-size: 0.75rem;
-          color: #888;
+          color: var(--text-secondary);
         }
       ` }} />
     </div>
