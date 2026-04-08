@@ -1,19 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
+import API from '../services/api';
 import '../styles/OrgPages.css';
 
-const INITIAL_BUS = [
-    { id: 1, name: 'Retail Banking', code: 'RB', description: 'Consumer and SME banking products', userCount: 14, color: '#6366f1' },
-    { id: 2, name: 'Risk & Compliance', code: 'RC', description: 'Regulatory and risk management functions', userCount: 9, color: '#ef4444' },
-    { id: 3, name: 'Wealth Management', code: 'WM', description: 'Private banking and investment advisory', userCount: 7, color: '#f59e0b' },
-    { id: 4, name: 'Corporate Banking', code: 'CB', description: 'Institutional and enterprise lending', userCount: 11, color: '#06b6d4' },
-    { id: 5, name: 'Technology', code: 'TECH', description: 'Core banking and digital platforms', userCount: 22, color: '#10b981' },
-];
-
 const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#ef4444', '#f59e0b', '#10b981', '#06b6d4', '#3b82f6'];
-
-let _nextId = 10;
-const uid = () => ++_nextId;
 
 const Modal = ({ title, children, onClose }) => (
     <div className="modal-overlay" onClick={onClose}>
@@ -28,28 +18,60 @@ const Modal = ({ title, children, onClose }) => (
 );
 
 const BusinessUnits = () => {
-    const [units, setUnits] = useState(INITIAL_BUS);
-    const [modal, setModal] = useState(null);
-    const [form, setForm] = useState({ name: '', code: '', description: '', color: '#6366f1' });
+    const [units, setUnits] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [modal, setModal] = useState(null); // null | 'add' | { id, name }
+    const [formName, setFormName] = useState('');
+    const [formColor, setFormColor] = useState(COLORS[0]);
 
-    const openAdd = () => { setForm({ name: '', code: '', description: '', color: '#6366f1' }); setModal('add'); };
-    const openEdit = (u) => { setForm({ ...u }); setModal('edit'); };
-
-    const handleSave = () => {
-        if (!form.name.trim() || !form.code.trim()) { toast.error('Name and code are required'); return; }
-        if (modal === 'edit') {
-            setUnits(prev => prev.map(u => u.id === form.id ? { ...u, ...form } : u));
-            toast.success('Business unit updated');
-        } else {
-            setUnits(prev => [...prev, { id: uid(), userCount: 0, ...form }]);
-            toast.success('Business unit created');
+    const fetchUnits = useCallback(async () => {
+        setLoading(true);
+        try {
+            const res = await API.get('users/business-units/');
+            setUnits(res.data);
+        } catch {
+            toast.error('Failed to load business units');
+        } finally {
+            setLoading(false);
         }
-        setModal(null);
+    }, []);
+
+    useEffect(() => { fetchUnits(); }, [fetchUnits]);
+
+    const openAdd = () => { setFormName(''); setFormColor(COLORS[0]); setModal('add'); };
+    const openEdit = (u) => {
+        setFormName(u.name);
+        setFormColor(u._color || COLORS[units.indexOf(u) % COLORS.length]);
+        setModal(u);
+    };
+    const closeModal = () => { setModal(null); setFormName(''); };
+
+    const handleSave = async () => {
+        if (!formName.trim()) { toast.error('Name is required'); return; }
+        try {
+            if (modal === 'add') {
+                await API.post('users/business-units/', { name: formName });
+                toast.success('Business unit created');
+            } else {
+                await API.put(`users/business-units/${modal.id}/`, { name: formName });
+                toast.success('Business unit updated');
+            }
+            fetchUnits();
+            closeModal();
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Save failed');
+        }
     };
 
-    const handleDelete = (id) => {
-        setUnits(prev => prev.filter(u => u.id !== id));
-        toast.success('Business unit deleted');
+    const handleDelete = async (id) => {
+        if (!window.confirm('Delete this business unit?')) return;
+        try {
+            await API.delete(`users/business-units/${id}/`);
+            toast.success('Business unit deleted');
+            fetchUnits();
+        } catch {
+            toast.error('Delete failed');
+        }
     };
 
     return (
@@ -62,75 +84,64 @@ const BusinessUnits = () => {
                 <button className="btn-primary" onClick={openAdd}>+ Add Unit</button>
             </div>
 
-            {/* Stats bar */}
             <div className="stats-bar">
                 <div className="stat-item">
                     <span className="stat-value">{units.length}</span>
                     <span className="stat-label">Business Units</span>
                 </div>
-                <div className="stat-item">
-                    <span className="stat-value">{units.reduce((s, u) => s + u.userCount, 0)}</span>
-                    <span className="stat-label">Total Users</span>
-                </div>
             </div>
 
-            <div className="bu-grid">
-                {units.map(unit => (
-                    <div key={unit.id} className="bu-card" style={{ borderTop: `3px solid ${unit.color}` }}>
-                        <div className="bu-header">
-                            <div className="bu-code-badge" style={{ background: `${unit.color}22`, color: unit.color }}>
-                                {unit.code}
+            {loading ? (
+                <div className="empty-state">Loading...</div>
+            ) : (
+                <div className="bu-grid">
+                    {units.map((unit, idx) => {
+                        const color = COLORS[idx % COLORS.length];
+                        return (
+                            <div key={unit.id} className="bu-card" style={{ borderTop: `3px solid ${color}` }}>
+                                <div className="bu-header">
+                                    <div className="bu-code-badge" style={{ background: `${color}22`, color }}>
+                                        {unit.name.slice(0, 3).toUpperCase()}
+                                    </div>
+                                    <div className="bu-actions">
+                                        <button className="btn-icon edit" onClick={() => openEdit(unit)}>✏️</button>
+                                        <button className="btn-icon danger" onClick={() => handleDelete(unit.id)}>🗑️</button>
+                                    </div>
+                                </div>
+                                <div className="bu-name">{unit.name}</div>
                             </div>
-                            <div className="bu-actions">
-                                <button className="btn-icon edit" onClick={() => openEdit(unit)}>✏️</button>
-                                <button className="btn-icon danger" onClick={() => handleDelete(unit.id)}>🗑️</button>
-                            </div>
+                        );
+                    })}
+                    {units.length === 0 && (
+                        <div className="empty-state">
+                            <span style={{ fontSize: '3rem' }}>🏢</span>
+                            <p>No business units defined yet.</p>
                         </div>
-                        <div className="bu-name">{unit.name}</div>
-                        <div className="bu-desc">{unit.description}</div>
-                        <div className="bu-footer">
-                            <span className="user-badge">{unit.userCount} members</span>
-                        </div>
-                    </div>
-                ))}
-                {units.length === 0 && (
-                    <div className="empty-state">
-                        <span style={{ fontSize: '3rem' }}>🏢</span>
-                        <p>No business units defined yet.</p>
-                    </div>
-                )}
-            </div>
+                    )}
+                </div>
+            )}
 
             {modal && (
-                <Modal title={modal === 'edit' ? 'Edit Business Unit' : 'Add Business Unit'} onClose={() => setModal(null)}>
+                <Modal
+                    title={modal === 'add' ? 'Add Business Unit' : 'Edit Business Unit'}
+                    onClose={closeModal}
+                >
                     <div className="form-group">
                         <label className="form-label">Unit Name</label>
-                        <input className="form-input" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Operations" autoFocus />
-                    </div>
-                    <div className="form-group">
-                        <label className="form-label">Code</label>
-                        <input className="form-input" value={form.code} onChange={e => setForm(p => ({ ...p, code: e.target.value }))} placeholder="e.g. OPS" />
-                    </div>
-                    <div className="form-group">
-                        <label className="form-label">Description</label>
-                        <textarea className="form-input" rows={2} value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="Brief description of this unit..." />
-                    </div>
-                    <div className="form-group">
-                        <label className="form-label">Color</label>
-                        <div className="color-selector">
-                            {COLORS.map(c => (
-                                <button
-                                    key={c}
-                                    className={`color-dot ${form.color === c ? 'selected' : ''}`}
-                                    style={{ background: c }}
-                                    onClick={() => setForm(p => ({ ...p, color: c }))}
-                                />
-                            ))}
-                        </div>
+                        <input
+                            className="form-input"
+                            value={formName}
+                            onChange={e => setFormName(e.target.value)}
+                            placeholder="e.g. Operations"
+                            onKeyDown={e => e.key === 'Enter' && handleSave()}
+                            autoFocus
+                        />
                     </div>
                     <div className="modal-footer">
-                        <button className="btn-secondary" onClick={() => setModal(null)}>Cancel</button>
-                        <button className="btn-primary" onClick={handleSave}>{modal === 'edit' ? 'Update' : 'Create'}</button>
+                        <button className="btn-secondary" onClick={closeModal}>Cancel</button>
+                        <button className="btn-primary" onClick={handleSave}>
+                            {modal === 'add' ? 'Create' : 'Update'}
+                        </button>
                     </div>
                 </Modal>
             )}

@@ -1,17 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
+import API from '../services/api';
 import '../styles/OrgPages.css';
-
-const INITIAL_REGIONS = [
-    { id: 1, name: 'India', code: 'IN', flag: '🇮🇳', userCount: 24 },
-    { id: 2, name: 'USA', code: 'US', flag: '🇺🇸', userCount: 18 },
-    { id: 3, name: 'APAC', code: 'APAC', flag: '🌏', userCount: 31 },
-    { id: 4, name: 'EMEA', code: 'EMEA', flag: '🌍', userCount: 15 },
-    { id: 5, name: 'LATAM', code: 'LATAM', flag: '🌎', userCount: 8 },
-];
-
-let _nextId = 10;
-const uid = () => ++_nextId;
 
 const Modal = ({ title, children, onClose }) => (
     <div className="modal-overlay" onClick={onClose}>
@@ -26,28 +16,55 @@ const Modal = ({ title, children, onClose }) => (
 );
 
 const Geography = () => {
-    const [regions, setRegions] = useState(INITIAL_REGIONS);
-    const [modal, setModal] = useState(null);
-    const [form, setForm] = useState({ name: '', code: '', flag: '' });
+    const [regions, setRegions] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [modal, setModal] = useState(null); // null | 'add' | { id, name }
+    const [formName, setFormName] = useState('');
 
-    const openAdd = () => { setForm({ name: '', code: '', flag: '' }); setModal('add'); };
-    const openEdit = (r) => { setForm({ ...r }); setModal('edit'); };
-
-    const handleSave = () => {
-        if (!form.name.trim() || !form.code.trim()) { toast.error('Name and code are required'); return; }
-        if (modal === 'edit') {
-            setRegions(prev => prev.map(r => r.id === form.id ? { ...r, ...form } : r));
-            toast.success('Region updated');
-        } else {
-            setRegions(prev => [...prev, { id: uid(), userCount: 0, ...form }]);
-            toast.success('Region added');
+    const fetchRegions = useCallback(async () => {
+        setLoading(true);
+        try {
+            const res = await API.get('users/geographies/');
+            setRegions(res.data);
+        } catch {
+            toast.error('Failed to load geographies');
+        } finally {
+            setLoading(false);
         }
-        setModal(null);
+    }, []);
+
+    useEffect(() => { fetchRegions(); }, [fetchRegions]);
+
+    const openAdd = () => { setFormName(''); setModal('add'); };
+    const openEdit = (r) => { setFormName(r.name); setModal(r); };
+    const closeModal = () => { setModal(null); setFormName(''); };
+
+    const handleSave = async () => {
+        if (!formName.trim()) { toast.error('Name is required'); return; }
+        try {
+            if (modal === 'add') {
+                await API.post('users/geographies/', { name: formName });
+                toast.success('Geography added');
+            } else {
+                await API.put(`users/geographies/${modal.id}/`, { name: formName });
+                toast.success('Geography updated');
+            }
+            fetchRegions();
+            closeModal();
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Save failed');
+        }
     };
 
-    const handleDelete = (id) => {
-        setRegions(prev => prev.filter(r => r.id !== id));
-        toast.success('Region removed');
+    const handleDelete = async (id) => {
+        if (!window.confirm('Delete this geography?')) return;
+        try {
+            await API.delete(`users/geographies/${id}/`);
+            toast.success('Geography deleted');
+            fetchRegions();
+        } catch {
+            toast.error('Delete failed');
+        }
     };
 
     return (
@@ -60,60 +77,59 @@ const Geography = () => {
                 <button className="btn-primary" onClick={openAdd}>+ Add Region</button>
             </div>
 
-            {/* Summary bar */}
             <div className="stats-bar">
                 <div className="stat-item">
                     <span className="stat-value">{regions.length}</span>
                     <span className="stat-label">Regions</span>
                 </div>
-                <div className="stat-item">
-                    <span className="stat-value">{regions.reduce((s, r) => s + r.userCount, 0)}</span>
-                    <span className="stat-label">Total Users</span>
-                </div>
             </div>
 
-            <div className="chip-grid">
-                {regions.map(region => (
-                    <div key={region.id} className="geo-card">
-                        <div className="geo-flag">{region.flag || '🌐'}</div>
-                        <div className="geo-info">
-                            <div className="geo-name">{region.name}</div>
-                            <div className="geo-code">{region.code}</div>
+            {loading ? (
+                <div className="empty-state">Loading...</div>
+            ) : (
+                <div className="chip-grid">
+                    {regions.map(region => (
+                        <div key={region.id} className="geo-card">
+                            <div className="geo-flag">🌐</div>
+                            <div className="geo-info">
+                                <div className="geo-name">{region.name}</div>
+                            </div>
+                            <div className="geo-actions">
+                                <button className="btn-icon edit" onClick={() => openEdit(region)}>✏️</button>
+                                <button className="btn-icon danger" onClick={() => handleDelete(region.id)}>🗑️</button>
+                            </div>
                         </div>
-                        <div className="geo-users">
-                            <span className="user-badge">{region.userCount} users</span>
+                    ))}
+                    {regions.length === 0 && (
+                        <div className="empty-state">
+                            <span style={{ fontSize: '3rem' }}>🗺️</span>
+                            <p>No regions defined yet.</p>
                         </div>
-                        <div className="geo-actions">
-                            <button className="btn-icon edit" onClick={() => openEdit(region)}>✏️</button>
-                            <button className="btn-icon danger" onClick={() => handleDelete(region.id)}>🗑️</button>
-                        </div>
-                    </div>
-                ))}
-                {regions.length === 0 && (
-                    <div className="empty-state">
-                        <span style={{ fontSize: '3rem' }}>🗺️</span>
-                        <p>No regions defined yet.</p>
-                    </div>
-                )}
-            </div>
+                    )}
+                </div>
+            )}
 
             {modal && (
-                <Modal title={modal === 'edit' ? 'Edit Region' : 'Add Region'} onClose={() => setModal(null)}>
+                <Modal
+                    title={modal === 'add' ? 'Add Region' : 'Edit Region'}
+                    onClose={closeModal}
+                >
                     <div className="form-group">
                         <label className="form-label">Region Name</label>
-                        <input className="form-input" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Middle East" autoFocus />
-                    </div>
-                    <div className="form-group">
-                        <label className="form-label">Code</label>
-                        <input className="form-input" value={form.code} onChange={e => setForm(p => ({ ...p, code: e.target.value }))} placeholder="e.g. ME" />
-                    </div>
-                    <div className="form-group">
-                        <label className="form-label">Flag Emoji (optional)</label>
-                        <input className="form-input" value={form.flag} onChange={e => setForm(p => ({ ...p, flag: e.target.value }))} placeholder="e.g. 🌍" />
+                        <input
+                            className="form-input"
+                            value={formName}
+                            onChange={e => setFormName(e.target.value)}
+                            placeholder="e.g. Middle East"
+                            onKeyDown={e => e.key === 'Enter' && handleSave()}
+                            autoFocus
+                        />
                     </div>
                     <div className="modal-footer">
-                        <button className="btn-secondary" onClick={() => setModal(null)}>Cancel</button>
-                        <button className="btn-primary" onClick={handleSave}>{modal === 'edit' ? 'Update' : 'Add'}</button>
+                        <button className="btn-secondary" onClick={closeModal}>Cancel</button>
+                        <button className="btn-primary" onClick={handleSave}>
+                            {modal === 'add' ? 'Add' : 'Update'}
+                        </button>
                     </div>
                 </Modal>
             )}

@@ -6,34 +6,68 @@
   --text-primary: #0f172a;
   --text-secondary: #475569;
   --border-color: #e2e8f0;
-  
+
   --accent-primary: #6366f1; /* Indigo - STEP 10.1 */
   --accent-primary-hover: #4f46e5;
   --accent-danger: #ef4444; /* Red - STEP 10.4 */
   --accent-danger-hover: #dc2626;
-  
+
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   --radius-md: 8px;
   --radius-lg: 12px;
+
+  /* Sidebar — light */
+  --sidebar-bg: #ffffff;
+  --sidebar-border: rgba(0, 0, 0, 0.07);
+  --sidebar-text: #64748b;
+  --sidebar-text-hover: #0f172a;
+  --sidebar-text-active: #4f46e5;
+  --sidebar-hover-bg: rgba(0, 0, 0, 0.04);
+  --sidebar-active-bg: rgba(99, 102, 241, 0.09);
+  --sidebar-active-border: #6366f1;
+  --sidebar-section-color: #94a3b8;
+  --sidebar-title-color: #0f172a;
+  --sidebar-user-email: #334155;
+  --sidebar-btn-border: rgba(0, 0, 0, 0.08);
+  --sidebar-btn-color: #64748b;
+  --sidebar-btn-hover-bg: rgba(0, 0, 0, 0.04);
+  --sidebar-btn-hover-color: #0f172a;
 }
 
 [data-theme='dark'] {
   /* Dark Mode Tokens - Slack/Vercel depth palette */
-  --bg-app: #0b0e14; 
+  --bg-app: #0b0e14;
   --bg-panel: #111827; /* Step 10.3 */
   --bg-panel-hover: #1f2937;
   --text-primary: #e5e7eb; /* Step 10.1 */
   --text-secondary: #9ca3af;
   --border-color: #1f2937;
 
-  --accent-primary: #6366f1; 
+  --accent-primary: #6366f1;
   --accent-primary-hover: #818cf8;
-  --accent-danger: #ef4444; 
+  --accent-danger: #ef4444;
   --accent-danger-hover: #f87171;
 
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.5);
   --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+
+  /* Sidebar — dark */
+  --sidebar-bg: linear-gradient(180deg, #0d1117 0%, #111827 100%);
+  --sidebar-border: rgba(255, 255, 255, 0.06);
+  --sidebar-text: #9ca3af;
+  --sidebar-text-hover: #f1f5f9;
+  --sidebar-text-active: #818cf8;
+  --sidebar-hover-bg: rgba(255, 255, 255, 0.06);
+  --sidebar-active-bg: rgba(99, 102, 241, 0.15);
+  --sidebar-active-border: #6366f1;
+  --sidebar-section-color: #4b5563;
+  --sidebar-title-color: #f1f5f9;
+  --sidebar-user-email: #e5e7eb;
+  --sidebar-btn-border: rgba(255, 255, 255, 0.08);
+  --sidebar-btn-color: #6b7280;
+  --sidebar-btn-hover-bg: rgba(255, 255, 255, 0.06);
+  --sidebar-btn-hover-color: #f1f5f9;
 }
 
 * {

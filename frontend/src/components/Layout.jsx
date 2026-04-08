@@ -54,25 +54,22 @@ const Layout = ({ children }) => {
 
     const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
 
-    // Refactored to handle new nested user object (Step 22.2.3.2.3)
-    const user = JSON.parse(localStorage.getItem('user'));
+    // Parse once — stable reference, not recreated on every render
+    const userRaw = localStorage.getItem('user');
+    const user = userRaw ? JSON.parse(userRaw) : null;
 
     useEffect(() => {
-        if (!user && location.pathname !== '/') {
+        if (!userRaw && location.pathname !== '/') {
             navigate('/');
-        } else if (user) {
-            fetchMyProfile();
+            return;
         }
-    }, [user, location.pathname, navigate]);
-
-    const fetchMyProfile = async () => {
-        try {
-            const res = await API.get('users/me/');
-            setProfileData(res.data);
-        } catch (err) {
-            console.error('Failed to fetch sidebar profile', err);
+        if (userRaw && !profileData) {
+            API.get('users/me/')
+                .then(res => setProfileData(res.data))
+                .catch(err => console.error('Failed to fetch sidebar profile', err));
         }
-    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [userRaw, location.pathname]);
 
     const handleLogout = () => {
         localStorage.removeItem('user');

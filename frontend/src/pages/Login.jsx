@@ -14,6 +14,8 @@ function Login() {
     setError("");
 
     try {
+      // Fetch CSRF cookie before posting login credentials
+      await API.get("users/csrf/");
       const res = await API.post("users/login/", {
         email,
         password

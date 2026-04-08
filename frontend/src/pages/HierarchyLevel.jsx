@@ -1,17 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
+import API from '../services/api';
 import '../styles/OrgPages.css';
-
-const LEVELS = [
-    { id: 1, name: 'Executive Director', code: 'L1', description: 'C-Suite and executive leadership' },
-    { id: 2, name: 'Senior Director', code: 'L2', description: 'Senior management and direction' },
-    { id: 3, name: 'Manager', code: 'L3', description: 'Team management and oversight' },
-    { id: 4, name: 'Senior Associate', code: 'L4', description: 'Senior individual contributors' },
-    { id: 5, name: 'Associate', code: 'L5', description: 'Individual contributors' },
-];
-
-let _nextId = 10;
-const uid = () => ++_nextId;
 
 const Modal = ({ title, children, onClose }) => (
     <div className="modal-overlay" onClick={onClose}>
@@ -26,35 +16,55 @@ const Modal = ({ title, children, onClose }) => (
 );
 
 const HierarchyLevel = () => {
-    const [levels, setLevels] = useState(LEVELS);
-    const [modal, setModal] = useState(null);
-    const [form, setForm] = useState({ name: '', code: '', description: '' });
+    const [levels, setLevels] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [modal, setModal] = useState(null); // null | 'add' | { id, name }
+    const [formName, setFormName] = useState('');
 
-    const openAdd = () => {
-        setForm({ name: '', code: '', description: '' });
-        setModal('add');
-    };
-
-    const openEdit = (level) => {
-        setForm({ name: level.name, code: level.code, description: level.description, id: level.id });
-        setModal('edit');
-    };
-
-    const handleSave = () => {
-        if (!form.name.trim() || !form.code.trim()) { toast.error('Name and code are required'); return; }
-        if (modal === 'edit') {
-            setLevels(prev => prev.map(l => l.id === form.id ? { ...l, ...form } : l));
-            toast.success('Hierarchy level updated');
-        } else {
-            setLevels(prev => [...prev, { id: uid(), ...form }]);
-            toast.success('Hierarchy level created');
+    const fetchLevels = useCallback(async () => {
+        setLoading(true);
+        try {
+            const res = await API.get('users/hierarchy-levels/');
+            setLevels(res.data);
+        } catch {
+            toast.error('Failed to load hierarchy levels');
+        } finally {
+            setLoading(false);
         }
-        setModal(null);
+    }, []);
+
+    useEffect(() => { fetchLevels(); }, [fetchLevels]);
+
+    const openAdd = () => { setFormName(''); setModal('add'); };
+    const openEdit = (level) => { setFormName(level.name); setModal(level); };
+    const closeModal = () => { setModal(null); setFormName(''); };
+
+    const handleSave = async () => {
+        if (!formName.trim()) { toast.error('Name is required'); return; }
+        try {
+            if (modal === 'add') {
+                await API.post('users/hierarchy-levels/', { name: formName });
+                toast.success('Hierarchy level created');
+            } else {
+                await API.put(`users/hierarchy-levels/${modal.id}/`, { name: formName });
+                toast.success('Hierarchy level updated');
+            }
+            fetchLevels();
+            closeModal();
+        } catch (err) {
+            toast.error(err.response?.data?.error || 'Save failed');
+        }
     };
 
-    const handleDelete = (id) => {
-        setLevels(prev => prev.filter(l => l.id !== id));
-        toast.success('Hierarchy level deleted');
+    const handleDelete = async (id) => {
+        if (!window.confirm('Delete this hierarchy level?')) return;
+        try {
+            await API.delete(`users/hierarchy-levels/${id}/`);
+            toast.success('Hierarchy level deleted');
+            fetchLevels();
+        } catch {
+            toast.error('Delete failed');
+        }
     };
 
     return (
@@ -67,46 +77,52 @@ const HierarchyLevel = () => {
                 <button className="btn-primary" onClick={openAdd}>+ Add Level</button>
             </div>
 
-            <div className="hierarchy-grid">
-                {levels.map((level, idx) => (
-                    <div key={level.id} className="hierarchy-card">
-                        <div className="hierarchy-rank">L{idx + 1}</div>
-                        <div className="hierarchy-info">
-                            <div className="hierarchy-name">{level.name}</div>
-                            <div className="hierarchy-code">Code: <strong>{level.code}</strong></div>
-                            <div className="hierarchy-desc">{level.description}</div>
+            {loading ? (
+                <div className="empty-state">Loading...</div>
+            ) : (
+                <div className="hierarchy-grid">
+                    {levels.map((level, idx) => (
+                        <div key={level.id} className="hierarchy-card">
+                            <div className="hierarchy-rank">L{idx + 1}</div>
+                            <div className="hierarchy-info">
+                                <div className="hierarchy-name">{level.name}</div>
+                            </div>
+                            <div className="hierarchy-actions">
+                                <button className="btn-icon edit" onClick={() => openEdit(level)}>✏️</button>
+                                <button className="btn-icon danger" onClick={() => handleDelete(level.id)}>🗑️</button>
+                            </div>
                         </div>
-                        <div className="hierarchy-actions">
-                            <button className="btn-icon edit" onClick={() => openEdit(level)}>✏️</button>
-                            <button className="btn-icon danger" onClick={() => handleDelete(level.id)}>🗑️</button>
+                    ))}
+                    {levels.length === 0 && (
+                        <div className="empty-state">
+                            <span style={{ fontSize: '3rem' }}>🏛️</span>
+                            <p>No hierarchy levels defined yet.</p>
                         </div>
-                    </div>
-                ))}
-                {levels.length === 0 && (
-                    <div className="empty-state">
-                        <span style={{ fontSize: '3rem' }}>🏛️</span>
-                        <p>No hierarchy levels defined yet.</p>
-                    </div>
-                )}
-            </div>
+                    )}
+                </div>
+            )}
 
             {modal && (
-                <Modal title={modal === 'edit' ? 'Edit Hierarchy Level' : 'Add Hierarchy Level'} onClose={() => setModal(null)}>
+                <Modal
+                    title={modal === 'add' ? 'Add Hierarchy Level' : 'Edit Hierarchy Level'}
+                    onClose={closeModal}
+                >
                     <div className="form-group">
                         <label className="form-label">Level Name</label>
-                        <input className="form-input" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Senior Manager" autoFocus />
-                    </div>
-                    <div className="form-group">
-                        <label className="form-label">Code</label>
-                        <input className="form-input" value={form.code} onChange={e => setForm(p => ({ ...p, code: e.target.value }))} placeholder="e.g. L3" />
-                    </div>
-                    <div className="form-group">
-                        <label className="form-label">Description</label>
-                        <textarea className="form-input" rows={3} value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="Brief role description..." />
+                        <input
+                            className="form-input"
+                            value={formName}
+                            onChange={e => setFormName(e.target.value)}
+                            placeholder="e.g. Senior Manager"
+                            onKeyDown={e => e.key === 'Enter' && handleSave()}
+                            autoFocus
+                        />
                     </div>
                     <div className="modal-footer">
-                        <button className="btn-secondary" onClick={() => setModal(null)}>Cancel</button>
-                        <button className="btn-primary" onClick={handleSave}>{modal === 'edit' ? 'Update' : 'Create'}</button>
+                        <button className="btn-secondary" onClick={closeModal}>Cancel</button>
+                        <button className="btn-primary" onClick={handleSave}>
+                            {modal === 'add' ? 'Create' : 'Update'}
+                        </button>
                     </div>
                 </Modal>
             )}

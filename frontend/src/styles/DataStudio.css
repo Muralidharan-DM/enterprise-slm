@@ -41,7 +41,7 @@
 
 .db-card {
     flex: 1;
-    background: #111827;
+    background: var(--bg-panel);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-lg);
     padding: 2.5rem 2rem;
@@ -52,6 +52,7 @@
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     text-align: center;
+    box-shadow: var(--shadow-sm);
 }
 
 .db-card:hover {
@@ -89,7 +90,7 @@
 .connection-form {
     width: 100%;
     max-width: 480px;
-    background: #111827;
+    background: var(--bg-panel);
     padding: 2.5rem;
     border-radius: var(--radius-lg);
     border: 1px solid var(--border-color);

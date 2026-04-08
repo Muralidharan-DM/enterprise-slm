@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import API from '../services/api'; // Step 24.2.2.2.1
 import '../styles/OrgPages.css';
@@ -22,25 +22,28 @@ const Domains = () => {
     const [modal, setModal] = useState(null); // { type: 'domain'|'subdomain', domainId?, editing? }
     const [formName, setFormName] = useState('');
 
-    useEffect(() => {
-        fetchDomains();
-    }, []);
-
-    const fetchDomains = async () => {
+    const fetchDomains = useCallback(async () => {
         setLoading(true);
         try {
             const res = await API.get('users/domains/manage/');
             setDomains(res.data);
             // Expand first domain by default if available
-            if (res.data.length > 0 && expanded.size === 0) {
-                setExpanded(new Set([res.data[0].id]));
-            }
+            setExpanded(prev => {
+                if (res.data.length > 0 && prev.size === 0) {
+                    return new Set([res.data[0].id]);
+                }
+                return prev;
+            });
         } catch (err) {
             toast.error("Failed to load domains from database");
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        fetchDomains();
+    }, [fetchDomains]);
 
     const toggleExpand = (id) => {
         setExpanded(prev => {
