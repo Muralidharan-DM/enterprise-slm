@@ -12,10 +12,30 @@ import Domains from './pages/Domains';
 import HierarchyLevel from './pages/HierarchyLevel';
 import Geography from './pages/Geography';
 import BusinessUnits from './pages/BusinessUnits';
+import UserForm from './pages/UserForm';
 import Layout from './components/Layout';
 
+// Role Helper
+const getUser = () => {
+  try {
+    return JSON.parse(localStorage.getItem("user"));
+  } catch (e) {
+    return null;
+  }
+};
+
 function App() {
-  const ProtectedRoute = ({ children }) => {
+  const ProtectedRoute = ({ children, adminOnly = false }) => {
+    const user = getUser();
+    
+    if (!user) {
+      return <Navigate to="/" replace />;
+    }
+
+    if (adminOnly && user.role !== 'admin') {
+      return <Navigate to="/chat" replace />;
+    }
+
     return <Layout>{children}</Layout>;
   };
 
@@ -36,21 +56,26 @@ function App() {
 
         {/* MAIN */}
         <Route path="/chat" element={<ProtectedRoute><ChatAnalytics /></ProtectedRoute>} />
-        <Route path="/data-studio" element={<ProtectedRoute><DataStudio /></ProtectedRoute>} />
+        <Route path="/data-studio" element={<ProtectedRoute adminOnly={true}><DataStudio /></ProtectedRoute>} />
 
-        {/* ORGANIZATION */}
-        <Route path="/users" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
-        <Route path="/domains" element={<ProtectedRoute><Domains /></ProtectedRoute>} />
-        <Route path="/hierarchy" element={<ProtectedRoute><HierarchyLevel /></ProtectedRoute>} />
-        <Route path="/geography" element={<ProtectedRoute><Geography /></ProtectedRoute>} />
-        <Route path="/business-units" element={<ProtectedRoute><BusinessUnits /></ProtectedRoute>} />
+        {/* ORGANIZATION (Admin Only) */}
+        <Route path="/users" element={<ProtectedRoute adminOnly={true}><UserManagement /></ProtectedRoute>} />
+        <Route path="/users/create" element={<ProtectedRoute adminOnly={true}><UserForm mode="create" /></ProtectedRoute>} />
+        <Route path="/users/edit/:id" element={<ProtectedRoute adminOnly={true}><UserForm mode="edit" /></ProtectedRoute>} />
+        <Route path="/domains" element={<ProtectedRoute adminOnly={true}><Domains /></ProtectedRoute>} />
+        <Route path="/hierarchy" element={<ProtectedRoute adminOnly={true}><HierarchyLevel /></ProtectedRoute>} />
+        <Route path="/geography" element={<ProtectedRoute adminOnly={true}><Geography /></ProtectedRoute>} />
+        <Route path="/business-units" element={<ProtectedRoute adminOnly={true}><BusinessUnits /></ProtectedRoute>} />
 
-        {/* SECURITY */}
-        <Route path="/security/csg" element={<ProtectedRoute><CSG /></ProtectedRoute>} />
-        <Route path="/security/rsg" element={<ProtectedRoute><RSG /></ProtectedRoute>} />
+        {/* SECURITY (Admin Only) */}
+        <Route path="/security/csg" element={<ProtectedRoute adminOnly={true}><CSG /></ProtectedRoute>} />
+        <Route path="/security/rsg" element={<ProtectedRoute adminOnly={true}><RSG /></ProtectedRoute>} />
 
         {/* PROFILE */}
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+        
+        {/* FALLBACK */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

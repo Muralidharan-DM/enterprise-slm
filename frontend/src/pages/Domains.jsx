@@ -1,29 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
+import API from '../services/api'; // Step 24.2.2.2.1
 import '../styles/OrgPages.css';
-
-const INITIAL_DOMAINS = [
-    {
-        id: 1, name: 'Sales', color: '#6366f1',
-        subdomains: [{ id: 101, name: 'Revenue' }, { id: 102, name: 'Orders' }]
-    },
-    {
-        id: 2, name: 'Product', color: '#8b5cf6',
-        subdomains: [{ id: 201, name: 'Catalog' }, { id: 202, name: 'Categories' }]
-    },
-    {
-        id: 3, name: 'Finance', color: '#06b6d4',
-        subdomains: [{ id: 301, name: 'Budgeting' }, { id: 302, name: 'Reporting' }]
-    },
-    {
-        id: 4, name: 'HR', color: '#f59e0b',
-        subdomains: [{ id: 401, name: 'Recruitment' }, { id: 402, name: 'Payroll' }]
-    },
-];
-
-// Simple unique ID generator for local state
-let _nextId = 500;
-const uid = () => ++_nextId;
 
 const Modal = ({ title, children, onClose }) => (
     <div className="modal-overlay" onClick={onClose}>
@@ -38,10 +16,31 @@ const Modal = ({ title, children, onClose }) => (
 );
 
 const Domains = () => {
-    const [domains, setDomains] = useState(INITIAL_DOMAINS);
-    const [expanded, setExpanded] = useState(new Set([1]));
+    const [domains, setDomains] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [expanded, setExpanded] = useState(new Set());
     const [modal, setModal] = useState(null); // { type: 'domain'|'subdomain', domainId?, editing? }
     const [formName, setFormName] = useState('');
+
+    useEffect(() => {
+        fetchDomains();
+    }, []);
+
+    const fetchDomains = async () => {
+        setLoading(true);
+        try {
+            const res = await API.get('users/domains/manage/');
+            setDomains(res.data);
+            // Expand first domain by default if available
+            if (res.data.length > 0 && expanded.size === 0) {
+                setExpanded(new Set([res.data[0].id]));
+            }
+        } catch (err) {
+            toast.error("Failed to load domains from database");
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const toggleExpand = (id) => {
         setExpanded(prev => {
@@ -58,46 +57,54 @@ const Domains = () => {
 
     const closeModal = () => { setModal(null); setFormName(''); };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!formName.trim()) { toast.error('Name cannot be empty'); return; }
 
-        if (modal.type === 'domain') {
-            if (modal.editing) {
-                setDomains(prev => prev.map(d => d.id === modal.editing.id ? { ...d, name: formName } : d));
-                toast.success('Domain updated');
+        try {
+            if (modal.type === 'domain') {
+                if (modal.editing) {
+                    await API.put(`users/domains/manage/${modal.editing.id}/`, { name: formName });
+                    toast.success('Domain updated in database');
+                } else {
+                    await API.post('users/domains/manage/', { name: formName });
+                    toast.success('New domain saved to database');
+                }
             } else {
-                setDomains(prev => [...prev, { id: uid(), name: formName, color: '#6366f1', subdomains: [] }]);
-                toast.success('Domain created');
+                if (modal.editing) {
+                    await API.put(`users/subdomains/${modal.editing.id}/`, { name: formName });
+                    toast.success('Subdomain updated in database');
+                } else {
+                    await API.post('users/subdomains/create/', { domainId: modal.domainId, name: formName });
+                    toast.success('New subdomain saved to database');
+                }
             }
-        } else {
-            if (modal.editing) {
-                setDomains(prev => prev.map(d => d.id === modal.domainId
-                    ? { ...d, subdomains: d.subdomains.map(s => s.id === modal.editing.id ? { ...s, name: formName } : s) }
-                    : d
-                ));
-                toast.success('Subdomain updated');
-            } else {
-                setDomains(prev => prev.map(d => d.id === modal.domainId
-                    ? { ...d, subdomains: [...d.subdomains, { id: uid(), name: formName }] }
-                    : d
-                ));
-                toast.success('Subdomain added');
-            }
+            fetchDomains(); // Refresh from DB
+            closeModal();
+        } catch (err) {
+            toast.error(err.response?.data?.error || "Error saving changes");
         }
-        closeModal();
     };
 
-    const deleteDomain = (id) => {
-        setDomains(prev => prev.filter(d => d.id !== id));
-        toast.success('Domain deleted');
+    const deleteDomain = async (id) => {
+        if (!window.confirm("Are you sure? This will delete all associated subdomains.")) return;
+        try {
+            await API.delete(`users/domains/manage/${id}/`);
+            toast.success('Domain deleted from database');
+            fetchDomains();
+        } catch (err) {
+            toast.error("Deletion failed");
+        }
     };
 
-    const deleteSubdomain = (domainId, subId) => {
-        setDomains(prev => prev.map(d => d.id === domainId
-            ? { ...d, subdomains: d.subdomains.filter(s => s.id !== subId) }
-            : d
-        ));
-        toast.success('Subdomain deleted');
+    const deleteSubdomain = async (subId) => {
+        if (!window.confirm("Delete this subdomain?")) return;
+        try {
+            await API.delete(`users/subdomains/${subId}/`);
+            toast.success('Subdomain deleted from database');
+            fetchDomains();
+        } catch (err) {
+            toast.error("Deletion failed");
+        }
     };
 
     return (
@@ -105,57 +112,61 @@ const Domains = () => {
             <div className="org-page-header">
                 <div>
                     <h1 className="page-title">Domains & Subdomains</h1>
-                    <p className="page-subtitle">Manage your organization's analytical domains and their subdivisions.</p>
+                    <p className="page-subtitle">Manage your organization's analytical domains and their subdivisions (Database Persistent).</p>
                 </div>
                 <button className="btn-primary" onClick={() => openModal('domain')}>
                     + Add Domain
                 </button>
             </div>
 
-            <div className="domain-tree">
-                {domains.map(domain => (
-                    <div key={domain.id} className="domain-node">
-                        <div className="domain-header-row">
-                            <button className="expand-toggle" onClick={() => toggleExpand(domain.id)}>
-                                {expanded.has(domain.id) ? '▼' : '▶'}
-                            </button>
-                            <div className="domain-dot" style={{ background: domain.color }}></div>
-                            <span className="domain-name">{domain.name}</span>
-                            <span className="subdomain-count">{domain.subdomains.length} subdomains</span>
-                            <div className="domain-actions">
-                                <button className="btn-icon" title="Add Subdomain" onClick={() => { openModal('subdomain', domain.id); setExpanded(p => new Set([...p, domain.id])); }}>+</button>
-                                <button className="btn-icon edit" title="Edit Domain" onClick={() => openModal('domain', null, domain)}>✏️</button>
-                                <button className="btn-icon danger" title="Delete Domain" onClick={() => deleteDomain(domain.id)}>🗑️</button>
+            {loading ? (
+                <div className="empty-state">Loading domains...</div>
+            ) : (
+                <div className="domain-tree">
+                    {domains.map(domain => (
+                        <div key={domain.id} className="domain-node">
+                            <div className="domain-header-row">
+                                <button className="expand-toggle" onClick={() => toggleExpand(domain.id)}>
+                                    {expanded.has(domain.id) ? '▼' : '▶'}
+                                </button>
+                                <div className="domain-dot" style={{ background: '#6366f1' }}></div>
+                                <span className="domain-name">{domain.name}</span>
+                                <span className="subdomain-count">{domain.subdomains.length} subdomains</span>
+                                <div className="domain-actions">
+                                    <button className="btn-icon" title="Add Subdomain" onClick={() => { openModal('subdomain', domain.id); setExpanded(p => new Set([...p, domain.id])); }}>+</button>
+                                    <button className="btn-icon edit" title="Edit Domain" onClick={() => openModal('domain', null, domain)}>✏️</button>
+                                    <button className="btn-icon danger" title="Delete Domain" onClick={() => deleteDomain(domain.id)}>🗑️</button>
+                                </div>
                             </div>
-                        </div>
 
-                        {expanded.has(domain.id) && (
-                            <div className="subdomain-list">
-                                {domain.subdomains.length === 0 && (
-                                    <div className="empty-subdomains">No subdomains yet. Click + to add one.</div>
-                                )}
-                                {domain.subdomains.map(sub => (
-                                    <div key={sub.id} className="subdomain-item">
-                                        <div className="subdomain-connector"></div>
-                                        <span className="subdomain-name">{sub.name}</span>
-                                        <div className="domain-actions">
-                                            <button className="btn-icon edit" title="Edit" onClick={() => openModal('subdomain', domain.id, sub)}>✏️</button>
-                                            <button className="btn-icon danger" title="Delete" onClick={() => deleteSubdomain(domain.id, sub.id)}>🗑️</button>
+                            {expanded.has(domain.id) && (
+                                <div className="subdomain-list">
+                                    {domain.subdomains.length === 0 && (
+                                        <div className="empty-subdomains">No subdomains yet. Click + to add one.</div>
+                                    )}
+                                    {domain.subdomains.map(sub => (
+                                        <div key={sub.id} className="subdomain-item">
+                                            <div className="subdomain-connector"></div>
+                                            <span className="subdomain-name">{sub.name}</span>
+                                            <div className="domain-actions">
+                                                <button className="btn-icon edit" title="Edit" onClick={() => openModal('subdomain', domain.id, sub)}>✏️</button>
+                                                <button className="btn-icon danger" title="Delete" onClick={() => deleteSubdomain(sub.id)}>🗑️</button>
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                ))}
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    ))}
 
-                {domains.length === 0 && (
-                    <div className="empty-state">
-                        <span style={{ fontSize: '3rem' }}>🌐</span>
-                        <p>No domains yet. Create your first domain to get started.</p>
-                    </div>
-                )}
-            </div>
+                    {domains.length === 0 && (
+                        <div className="empty-state">
+                            <span style={{ fontSize: '3rem' }}>🌐</span>
+                            <p>No domains yet. Create your first domain to get started.</p>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {modal && (
                 <Modal

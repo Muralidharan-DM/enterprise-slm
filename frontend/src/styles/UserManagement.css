@@ -1,143 +1,151 @@
+/* Enterprise User Management Styles */
+
+:root {
+    --card-bg: #111827;
+    --input-bg: #1f2937;
+    --border-color: #374151;
+    --accent: #6366f1;
+    --accent-glow: rgba(99, 102, 241, 0.4);
+}
+
 .user-management-container {
-    padding: 2rem;
-    max-width: 1200px;
-    margin: 0 auto;
-    font-family: 'Inter', sans-serif;
-}
-
-.user-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 2rem;
-    background: var(--bg-panel);
-    border-radius: var(--radius-lg);
-    overflow: hidden;
-    box-shadow: var(--shadow-md);
-    border: 1px solid var(--border-color);
-}
-
-.user-table th, .user-table td {
-    padding: 1.25rem 1.5rem;
-    text-align: left;
-    border-bottom: 1px solid var(--border-color);
-    color: var(--text-primary);
-}
-
-.user-table th {
-    background: var(--bg-panel);
-    font-weight: 600;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    font-size: 0.8rem;
-    letter-spacing: 0.5px;
-}
-
-.edit-btn {
-    padding: 0.5rem 1rem;
-    background: var(--accent-primary);
-    color: white;
-    border: none;
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    transition: background 0.3s;
-}
-
-.edit-btn:hover {
-    background: var(--accent-primary-hover);
-}
-
-/* Modal Styling */
-.modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0,0,0,0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-}
-
-.modal-content {
-    background: var(--bg-panel);
     padding: 2.5rem;
-    border-radius: var(--radius-lg);
-    width: 100%;
-    max-width: 800px;
-    max-height: 90vh;
-    overflow-y: auto;
-    box-shadow: var(--shadow-md);
-    border: 1px solid var(--border-color);
+    max-width: 1400px;
+    margin: 0 auto;
+    color: #f3f4f6;
 }
 
-.modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+.card {
+    background: var(--card-bg);
+    padding: 24px;
+    border-radius: 14px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
     margin-bottom: 2rem;
 }
 
-.section-title {
-    margin: 1.5rem 0 1rem;
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--text-secondary);
-}
-
-/* Redundant chip styles removed as they are now in index.css */
-
-.hierarchy-select {
+.enterprise-table {
     width: 100%;
-    padding: 0.75rem;
+    border-collapse: collapse;
+}
+
+.enterprise-table th {
+    text-align: left;
+    padding: 1rem;
+    color: #9ca3af;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.enterprise-table td {
+    padding: 1.25rem 1rem;
+    border-bottom: 1px solid rgba(55, 65, 81, 0.5);
+    font-size: 0.95rem;
+}
+
+.row-hover:hover {
+    background: rgba(99, 102, 241, 0.05);
+}
+
+/* Form Styles */
+.form-input {
+    background: var(--input-bg);
     border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    margin-bottom: 1.5rem;
-    background: var(--bg-app);
-    color: var(--text-primary);
-}
-
-.hierarchy-select:focus {
-    border-color: var(--accent-primary);
-    outline: none;
-}
-
-.modal-actions {
-    margin-top: 2.5rem;
-    display: flex;
-    gap: 1rem;
-    justify-content: flex-end;
-}
-
-.save-btn {
-    padding: 0.75rem 2rem;
-    background: var(--accent-primary);
+    padding: 12px;
+    border-radius: 8px;
     color: white;
-    border: none;
-    border-radius: var(--radius-md);
-    font-weight: 600;
-    cursor: pointer;
-}
-.save-btn:hover {
-    background: var(--accent-primary-hover);
+    width: 100%;
+    transition: all 0.2s;
 }
 
-.cancel-btn {
-    padding: 0.75rem 2rem;
-    background: var(--bg-app);
-    color: var(--text-primary);
+.form-input:focus {
+    border-color: var(--accent);
+    outline: none;
+    box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #9ca3af;
+    font-size: 0.85rem;
+}
+
+.section-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+    color: #8b5cf6;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Chips */
+.chip {
+    padding: 6px 16px;
+    border-radius: 20px;
     border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
     cursor: pointer;
-}
-.cancel-btn:hover {
-    background: var(--bg-panel-hover);
+    background: rgba(31, 41, 55, 0.5);
+    color: #d1d5db;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+    user-select: none;
 }
 
-@media (max-width: 768px) {
-    .modal-content {
-        padding: 1.5rem;
-        margin: 1rem;
-    }
+.chip:hover {
+    border-color: #4b5563;
+    background: rgba(31, 41, 55, 0.8);
+}
+
+.chip.selected {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+    box-shadow: 0 4px 6px -1px var(--accent-glow);
+}
+
+.chip-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+/* Buttons */
+.btn-primary {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.btn-primary:hover {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+}
+
+.role-badge {
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.role-badge.admin {
+    background: rgba(99, 102, 241, 0.15);
+    color: #818cf8;
+    border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.role-badge.user {
+    background: rgba(16, 185, 129, 0.1);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.2);
 }

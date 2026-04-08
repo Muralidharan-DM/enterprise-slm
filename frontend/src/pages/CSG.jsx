@@ -6,10 +6,9 @@ import '../styles/CSG.css';
 const CSG = () => {
     const [groups, setGroups] = useState([]);
     const [masterData, setMasterData] = useState({
-        domains: [],
-        subdomains: [],
         users: []
     });
+    const [domainConfig, setDomainConfig] = useState({}); // Step 23.2.3.1.2
     const [oracleSchema, setOracleSchema] = useState({});
     const [isWizardOpen, setIsWizardOpen] = useState(false);
     const [currentStep, setCurrentStep] = useState(1);
@@ -28,6 +27,7 @@ const CSG = () => {
     useEffect(() => {
         fetchGroups();
         fetchMasterData();
+        fetchDomainConfig(); // Step 23.2.3.1.2
         fetchOracleSchema();
     }, []);
 
@@ -38,13 +38,17 @@ const CSG = () => {
         } catch (err) { console.error("Error fetching groups", err); }
     };
 
+    const fetchDomainConfig = async () => {
+        try {
+            const res = await API.get('users/domains/');
+            setDomainConfig(res.data);
+        } catch (err) { console.error("Error fetching domain config", err); }
+    };
+
     const fetchMasterData = async () => {
         try {
-            const domainRes = await API.get('users/master-data/');
             const userRes = await API.get('users/profiles/');
             setMasterData({
-                domains: domainRes.data.domains,
-                subdomains: domainRes.data.subdomains,
                 users: userRes.data
             });
         } catch (err) { console.error("Error fetching master data", err); }
@@ -62,18 +66,21 @@ const CSG = () => {
         setFormData({ ...formData, [field]: newList });
     };
 
-    const handleSubdomainToggle = (subName, parentDomain) => {
+    const handleSubdomainToggle = (subName) => {
         const isSelected = formData.subdomains.includes(subName);
         let newSubdomains = isSelected 
             ? formData.subdomains.filter(s => s !== subName)
             : [...formData.subdomains, subName];
         
-        let newDomains = [...formData.domains];
-        if (!isSelected && !newDomains.includes(parentDomain)) {
-            newDomains.push(parentDomain);
-        }
-        
-        setFormData({ ...formData, subdomains: newSubdomains, domains: newDomains });
+        setFormData({ ...formData, subdomains: newSubdomains });
+    };
+
+    const getAvailableSubdomains = () => {
+        let subs = [];
+        formData.domains.forEach(d => {
+            if (domainConfig[d]) subs.push(...domainConfig[d].subdomains);
+        });
+        return [...new Set(subs)];
     };
 
     const handleColumnToggle = (dataset, column) => {
@@ -188,7 +195,7 @@ const CSG = () => {
                                 
                                 <p className="section-title">Domains</p>
                                 <div className="chip-group">
-                                    {masterData.domains.map(dom => (
+                                    {Object.keys(domainConfig).map(dom => (
                                         <div 
                                             key={dom} 
                                             className={`chip ${formData.domains.includes(dom) ? 'selected' : ''}`}
@@ -199,15 +206,15 @@ const CSG = () => {
                                     ))}
                                 </div>
 
-                                <p className="section-title">Subdomains</p>
+                                <p className="section-title">Subdomains (Dynamic)</p>
                                 <div className="chip-group">
-                                    {masterData.subdomains.map(sub => (
+                                    {getAvailableSubdomains().map(sub => (
                                         <div 
-                                            key={sub.name} 
-                                            className={`chip ${formData.subdomains.includes(sub.name) ? 'selected' : ''}`}
-                                            onClick={() => handleSubdomainToggle(sub.name, sub.domain)}
+                                            key={sub} 
+                                            className={`chip ${formData.subdomains.includes(sub) ? 'selected' : ''}`}
+                                            onClick={() => handleSubdomainToggle(sub)}
                                         >
-                                            {sub.name} <small>({sub.domain})</small>
+                                            {sub}
                                         </div>
                                     ))}
                                 </div>

@@ -1,5 +1,16 @@
 from analytics.seed_data import DATASETS
 from chat.intents import INTENT_MAP, detect_intent
+from core.domain_config import DOMAIN_CONFIG
+
+def detect_domain(query):
+    """
+    Heuristic domain detection based on keywords (Step 23.2.2.1.5).
+    """
+    query = query.lower()
+    for domain, config in DOMAIN_CONFIG.items():
+        if any(k in query for k in config["keywords"]):
+            return domain
+    return None
 
 def process_query(query):
     """

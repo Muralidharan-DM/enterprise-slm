@@ -3,7 +3,7 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import API from '../services/api';
 import '../styles/Layout.css';
 
-// Sidebar menu configuration
+// Sidebar menu configuration (Step 22.2.3.2.3)
 const getMenu = (role) => {
     const isAdmin = role === 'admin';
     return [
@@ -54,6 +54,7 @@ const Layout = ({ children }) => {
 
     const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
 
+    // Refactored to handle new nested user object (Step 22.2.3.2.3)
     const user = JSON.parse(localStorage.getItem('user'));
 
     useEffect(() => {
@@ -62,7 +63,7 @@ const Layout = ({ children }) => {
         } else if (user) {
             fetchMyProfile();
         }
-    }, []);
+    }, [user, location.pathname, navigate]);
 
     const fetchMyProfile = async () => {
         try {
@@ -138,7 +139,7 @@ const Layout = ({ children }) => {
                         {!sidebarCollapsed && (
                             <div className="user-info">
                                 <span className="user-email" title={user.email}>{user.email}</span>
-                                <span className={`user-role-badge role-${user.role}`}>{user.role}</span>
+                                <span className={`user-role-badge role-${user.role}`}>{user.role.toUpperCase()}</span>
                             </div>
                         )}
                     </div>

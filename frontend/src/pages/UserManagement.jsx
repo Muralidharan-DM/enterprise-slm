@@ -1,226 +1,105 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import API from '../services/api';
 import toast from 'react-hot-toast';
 import '../styles/UserManagement.css';
 
 const UserManagement = () => {
+    const navigate = useNavigate();
     const [users, setUsers] = useState([]);
-    const [masterData, setMasterData] = useState({
-        geographies: [],
-        business_units: [],
-        domains: [],
-        subdomains: []
-    });
-    const [selectedUser, setSelectedUser] = useState(null);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    
-    // Form State
-    const [hierarchyLevel, setHierarchyLevel] = useState("");
-    const [selectedGeos, setSelectedGeos] = useState([]);
-    const [selectedBUs, setSelectedBUs] = useState([]);
-    const [selectedDomains, setSelectedDomains] = useState([]);
-    const [selectedSubDomains, setSelectedSubDomains] = useState([]);
+    const [loading, setLoading] = useState(false);
 
     useEffect(() => {
         fetchUsers();
-        fetchMasterData();
     }, []);
 
     const fetchUsers = async () => {
+        setLoading(true);
+        console.log("🚀 Initializing fetch: /api/users/");
         try {
-            const res = await API.get('users/profiles/');
+            const res = await API.get('users/'); // Step 27.2.2.1.3 simplified path
+            console.log("✅ Registry Data synchronized:", res.data);
             setUsers(res.data);
         } catch (err) {
-            console.error("Error fetching users", err);
+            console.error("❌ Synchronization Failure:", err);
+            toast.error("Failed to load user list");
+        } finally {
+            setLoading(false);
         }
     };
-
-    const fetchMasterData = async () => {
-        try {
-            const res = await API.get('users/master-data/');
-            setMasterData(res.data);
-        } catch (err) {
-            console.error("Error fetching master data", err);
-        }
-    };
-
-    const handleEdit = (user) => {
-        setSelectedUser(user);
-        setHierarchyLevel(user.hierarchy_level || "");
-        setSelectedGeos(user.geographies || []);
-        setSelectedBUs(user.business_units || []);
-        setSelectedDomains(user.domains || []);
-        setSelectedSubDomains(user.subdomains || []);
-        setIsModalOpen(true);
-    };
-
-    const toggleSelection = (item, selectedList, setSelectedList) => {
-        if (selectedList.includes(item)) {
-            setSelectedList(selectedList.filter(i => i !== item));
-        } else {
-            setSelectedList([...selectedList, item]);
-        }
-    };
-
-    const handleSubdomainToggle = (sub) => {
-        const subdomainName = sub.name;
-        const parentDomain = sub.domain;
-
-        if (selectedSubDomains.includes(subdomainName)) {
-            setSelectedSubDomains(selectedSubDomains.filter(s => s !== subdomainName));
-        } else {
-            setSelectedSubDomains([...selectedSubDomains, subdomainName]);
-            // Auto-select parent domain if not already selected
-            if (!selectedDomains.includes(parentDomain)) {
-                setSelectedDomains([...selectedDomains, parentDomain]);
-            }
-        }
-    };
-
-    const handleSave = async () => {
-        try {
-            await API.put(`users/profiles/${selectedUser.id}/`, {
-                hierarchy_level: hierarchyLevel,
-                geographies: selectedGeos,
-                business_units: selectedBUs,
-                domains: selectedDomains,
-                subdomains: selectedSubDomains
-            });
-            setIsModalOpen(false);
-            fetchUsers();
-            toast.success("User updated successfully!");
-        } catch (err) {
-            console.error("Error updating user", err);
-            toast.error("Failed to update user.");
-        }
-    };
-
-    // Filter subdomains based on selected domains
-    const availableSubdomains = masterData.subdomains.filter(
-        sub => selectedDomains.length === 0 || selectedDomains.includes(sub.domain)
-    );
 
     return (
         <div className="user-management-container">
-            <h1 className="page-title">User Management</h1>
-            <p className="text-secondary mb-8">Manage geographies, domains, and business units for enterprise users.</p>
-
-            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-                <table className="enterprise-table">
-                <thead>
-                    <tr>
-                        <th>Email</th>
-                        <th>Hierarchy</th>
-                        <th>Domains</th>
-                        <th>Geographies</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {users.map(user => (
-                        <tr key={user.id}>
-                            <td>{user.email}</td>
-                            <td>{user.hierarchy_level || 'N/A'}</td>
-                            <td>{user.domains.join(', ') || 'None'}</td>
-                            <td>{user.geographies.join(', ') || 'None'}</td>
-                            <td>
-                                <button className="btn-primary" style={{ padding: '4px 12px', fontSize: '0.85rem' }} onClick={() => handleEdit(user)}>Edit</button>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-                </table>
+            <div className="flex justify-between items-center mb-10">
+                <div>
+                    <h1 className="page-title">Enterprise Identity</h1>
+                    <p className="text-secondary">Orchestrate organizational access, roles, and administrative hierarchies.</p>
+                </div>
+                <button className="btn-primary" onClick={() => navigate('/users/create')}>
+                    ➕ Create New User
+                </button>
             </div>
 
-            {isModalOpen && (
-                <div className="modal-overlay">
-                    <div className="modal-content">
-                        <div className="modal-header">
-                            <h2>Edit User: {selectedUser.email}</h2>
-                            <button className="cancel-btn" onClick={() => setIsModalOpen(false)}>×</button>
-                        </div>
-
-                        <div className="section">
-                            <label className="section-title">Hierarchy Level</label>
-                            <select 
-                                className="hierarchy-select"
-                                value={hierarchyLevel}
-                                onChange={(e) => setHierarchyLevel(e.target.value)}
-                            >
-                                <option value="">Select Level</option>
-                                <option value="L1 - Executive">L1 - Executive</option>
-                                <option value="L2 - Management">L2 - Management</option>
-                                <option value="L3 - Staff">L3 - Staff</option>
-                            </select>
-                        </div>
-
-                        <div className="section">
-                            <label className="section-title">Geographies</label>
-                            <div className="chip-group">
-                                {masterData.geographies.map(geo => (
-                                    <div 
-                                        key={geo}
-                                        className={`chip ${selectedGeos.includes(geo) ? 'selected' : ''}`}
-                                        onClick={() => toggleSelection(geo, selectedGeos, setSelectedGeos)}
-                                    >
-                                        {geo}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="section">
-                            <label className="section-title">Business Units</label>
-                            <div className="chip-group">
-                                {masterData.business_units.map(bu => (
-                                    <div 
-                                        key={bu}
-                                        className={`chip ${selectedBUs.includes(bu) ? 'selected' : ''}`}
-                                        onClick={() => toggleSelection(bu, selectedBUs, setSelectedBUs)}
-                                    >
-                                        {bu}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="section">
-                            <label className="section-title">Domains</label>
-                            <div className="chip-group">
-                                {masterData.domains.map(dom => (
-                                    <div 
-                                        key={dom}
-                                        className={`chip ${selectedDomains.includes(dom) ? 'selected' : ''}`}
-                                        onClick={() => toggleSelection(dom, selectedDomains, setSelectedDomains)}
-                                    >
-                                        {dom}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="section">
-                            <label className="section-title">Subdomains (Filtered by selected domains)</label>
-                            <div className="chip-group">
-                                {availableSubdomains.map(sub => (
-                                    <div 
-                                        key={sub.name}
-                                        className={`chip ${selectedSubDomains.includes(sub.name) ? 'selected' : ''}`}
-                                        onClick={() => handleSubdomainToggle(sub)}
-                                    >
-                                        {sub.name} <small style={{opacity: 0.7}}>({sub.domain})</small>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="modal-actions">
-                            <button className="btn-secondary" onClick={() => setIsModalOpen(false)}>Cancel</button>
-                            <button className="btn-primary" onClick={handleSave}>Save Changes</button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <div className="card" style={{ padding: 0 }}>
+                {loading ? (
+                    <div className="p-10 text-center text-secondary">Synchronizing enterprise registry...</div>
+                ) : (
+                    <table className="enterprise-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Role</th>
+                                <th>Domains</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {users.length === 0 ? (
+                                <tr>
+                                    <td colSpan="5" className="p-10 text-center text-secondary italic">
+                                        No enterprise users found. Onboard your first identity to begin.
+                                    </td>
+                                </tr>
+                            ) : (
+                                users.map(user => (
+                                    <tr key={user.id} className="row-hover">
+                                        <td className="font-semibold">{user.name}</td>
+                                        <td style={{ color: '#9ca3af' }}>{user.email}</td>
+                                        <td>
+                                            <span className={`role-badge ${user.role}`}>
+                                                {user.role}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div className="flex gap-2 flex-wrap">
+                                                {user.domains && user.domains.length > 0 ? (
+                                                    user.domains.map(d => (
+                                                        <span key={d} className="chip" style={{fontSize: '0.7rem', padding: '2px 8px', cursor: 'default'}}>
+                                                            {d}
+                                                        </span>
+                                                    ))
+                                                ) : (
+                                                    <span className="text-secondary italic small">Unassigned</span>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <button 
+                                                className="btn-primary" 
+                                                onClick={() => navigate(`/users/edit/${user.id}`)}
+                                                style={{ padding: '6px 14px', fontSize: '0.85rem' }}
+                                            >
+                                                Modify
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                )}
+            </div>
         </div>
     );
 };

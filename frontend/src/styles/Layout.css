@@ -226,13 +226,13 @@
 }
 
 .user-role-badge.role-admin {
-    background: rgba(99, 102, 241, 0.2);
-    color: #818cf8;
+    background: #6366f1;
+    color: white;
 }
 
 .user-role-badge.role-user {
-    background: rgba(16, 185, 129, 0.15);
-    color: #34d399;
+    background: #10b981;
+    color: white;
 }
 
 .theme-toggle-btn,

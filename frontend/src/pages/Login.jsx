@@ -19,8 +19,8 @@ function Login() {
         password
       });
 
-      localStorage.setItem("user", JSON.stringify(res.data));
-      window.location.href = "/dashboard";
+      localStorage.setItem("user", JSON.stringify(res.data.user));
+      window.location.href = "/chat";
     } catch (err) {
       setError(err.response?.data?.error || "Invalid credentials. Please use @decisionminds.com email.");
     } finally {
