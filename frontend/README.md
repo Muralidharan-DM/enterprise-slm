@@ -1,70 +1,76 @@
-# Getting Started with Create React App
+# 🚀 Enterprise SLM: Analytical Orchestration Platform
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+## 🌐 Overview
+The **Enterprise SLM (State-of-the-art Language Model)** frontend is a high-fidelity, single-page application (SPA) designed to serve as the administrative and analytical command center for an enterprise-grade AI ecosystem. Built with a focus on **Zero-Mock persistence** and **High-Fidelity UI**, it empowers administrators to orchestrate complex organizational taxonomies and manage sophisticated data governance policies with precision.
 
-## Available Scripts
+---
 
-In the project directory, you can run:
+## 🏗️ Core Architectural Pillars
 
-### `npm start`
+### 1. Universal Administrative Engine
+The platform implements a standardized CRUD (Create, Read, Update, Delete) architecture for orchestrating the enterprise matrix. Every organizational node is 100% database-persistent, moving away from legacy hardcoded prototypes.
+*   **Hierarchical Tiers**: Dynamic rank management for organizational structures.
+*   **Geographic Boundaries**: Mapping and managing regional operational clusters.
+*   **Business Unit Identification**: Synchronizing operational functions across the global enterprise.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+### 2. Domain & Subdomain Hierarchies
+A sophisticated, multi-level tree structure for classifying analytical data.
+*   **Relational Integrity**: Subdomains are strictly linked to parent domains with cascading logic.
+*   **Dynamic Expansion**: Smart tree-view orchestration with state-aware expansion and real-time synchronization.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+### 3. Identity & Access Orchestration
+Enterprise-grade user management that bridges the gap between raw data and secure user experiences.
+*   **Identity Onboarding**: Detailed user profiles with role-based assignment (ADMIN vs. USER).
+*   **Access Scoping**: Granular mapping of users to specific Domains, Geographies, and Business Units.
+*   **RBAC Enforced**: Built-in role-based access control protecting administrative modules.
 
-### `npm test`
+---
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## 🎨 Design Philosophy
+*   **Adaptive Theme System**: Sophisticated Light and Dark mode optimization with CSS variable-driven styling.
+*   **High-Fidelity Aesthetics**: Premium gradients, smooth micro-animations, and a refined "Industrial Deep Navy" visual language.
+*   **Responsive Shell**: A collapsable sidebar and flexible content grid designed for high-density analytical tasks.
 
-### `npm run build`
+---
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## 🛠️ Technical Stack
+*   **Engine**: React.js (Component-based architecture)
+*   **Navigation**: React Router (Declarative routing)
+*   **State Management**: Optimized React Hooks (useState, useEffect, useMemo, useCallback)
+*   **Networking**: Axios (Standardized intercepted API instances)
+*   **Styling**: Vanilla CSS (Modular design tokens for maximum visual precision)
+*   **Integration**: Seamless orchestration with a Django REST API backend.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+---
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## 🚀 Key Modules
+*   **Chat Assistant**: The primary cognitive interface for analytical querying.
+*   **Data Studio**: Advanced dataset exploration and schema management.
+*   **User Management**: The centralized registry for enterprise identities.
+*   **Security Groups**: Granular column and row-level security configuration.
 
-### `npm run eject`
+---
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+## 📦 Getting Started
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+### 1. Initialization
+*   **Dependencies**: Run `npm install` to synchronize the local node ecosystem.
+*   **Environment**: Ensure the Backend API (Django) is operational at `http://127.0.0.1:8000`.
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+### 2. Execution Protocol
+Run the following commands in separate terminal instances:
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+```powershell
+# Run Django Backend
+cd backend
+venv\Scripts\activate
+python manage.py runserver
 
-## Learn More
+# Run React Application
+cd frontend
+npm start
+```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+---
 
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+*Developed for the Decision Minds Enterprise analytical suite.*
