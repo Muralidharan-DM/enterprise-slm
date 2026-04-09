@@ -49,26 +49,39 @@ const DataStudio = () => {
     const handleConnect = async (e) => {
         e?.preventDefault();
         setLoading(true);
-        
-        // Simulating enterprise-grade connection for demo purposes
-        setTimeout(() => {
-            setDatasets(["Customers", "Orders", "Inventory", "Revenue", "Employees"]);
-            setConnInfo({ type: "Oracle DB (Seeded)", host: "192.168.0.205" });
-            setView('dashboard');
+        try {
+            const payload = {
+                type: formData.type,
+                host: formData.host,
+                port: formData.port,
+                user: formData.user,
+                password: formData.password,
+                service_name: formData.service_name,
+                database: formData.database,
+            };
+            const res = await API.post("data-studio/connect/", payload);
+            if (res.data.success) {
+                setConnInfo({ type: selectedDB.name, host: formData.host });
+                toast.success(`✅ Connected to ${selectedDB.name}`);
+                await fetchTables(true);
+            } else {
+                toast.error(res.data.error || "Connection failed");
+            }
+        } catch (err) {
+            toast.error(err.response?.data?.error || "❌ Connection refused — check credentials");
+        } finally {
             setLoading(false);
-            toast.success("✅ Connected to Seeding Engine Successfully");
-        }, 1200);
+        }
     };
 
-    const fetchTables = async () => {
-        setLoading(true);
+    const fetchTables = async (fromConnect = false) => {
+        if (!fromConnect) setLoading(true);
         try {
             const res = await API.get("data-studio/tables/");
             setDatasets(res.data.datasets || []);
             setView('dashboard');
         } catch (err) {
-            console.error("Error fetching tables", err);
-            toast.error("❌ Session Lost or Driver Error");
+            toast.error("❌ Session lost — please reconnect");
             setView('selection');
         } finally {
             setLoading(false);
@@ -179,8 +192,8 @@ const DataStudio = () => {
                     </span>
                 </div>
                 <div className="btn-group">
-                    <button className="btn-secondary" onClick={disconnect}>Unlink Machine</button>
-                    <button className="btn-primary" onClick={fetchTables} disabled={loading}>Refresh Entities</button>
+                    <button className="btn-secondary" onClick={disconnect}>Disconnect</button>
+                    <button className="btn-primary" onClick={() => fetchTables()} disabled={loading}>Refresh Tables</button>
                 </div>
             </header>
 

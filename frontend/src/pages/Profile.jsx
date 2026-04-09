@@ -1,34 +1,40 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import API from '../services/api';
 import toast from 'react-hot-toast';
+import '../styles/Profile.css';
+
+const Tag = ({ label }) => <span className="profile-tag">{label}</span>;
+
+const AllAccessBadge = () => (
+    <span className="profile-all-access">All Access</span>
+);
 
 const Profile = () => {
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
     const [editing, setEditing] = useState(false);
-    
-    // Form fields
-    const [firstName, setFirstName] = useState("");
-    const [lastName, setLastName] = useState("");
-    const [password, setPassword] = useState("");
-    const [photo, setPhoto] = useState(null);
+    const [form, setForm] = useState({ username: '', first_name: '', last_name: '', password: '' });
+    const [photoFile, setPhotoFile] = useState(null);
     const [photoPreview, setPhotoPreview] = useState(null);
+    const fileInputRef = useRef(null);
 
-    useEffect(() => {
-        fetchProfile();
-    }, []);
+    useEffect(() => { fetchProfile(); }, []);
 
     const fetchProfile = async () => {
+        setLoading(true);
         try {
-            const res = await API.get("users/me/");
+            const res = await API.get('users/me/');
             setProfile(res.data);
-            setFirstName(res.data.first_name || "");
-            setLastName(res.data.last_name || "");
-            if (res.data.profile_photo) {
-                setPhotoPreview(res.data.profile_photo);
-            }
-        } catch (err) {
-            toast.error("Failed to load profile");
+            setForm({
+                username: res.data.username || '',
+                first_name: res.data.first_name || '',
+                last_name: res.data.last_name || '',
+                password: '',
+            });
+            setPhotoPreview(res.data.profile_photo || null);
+        } catch {
+            toast.error('Failed to load profile');
         } finally {
             setLoading(false);
         }
@@ -36,157 +42,242 @@ const Profile = () => {
 
     const handlePhotoChange = (e) => {
         const file = e.target.files[0];
-        if (file) {
-            setPhoto(file);
-            setPhotoPreview(URL.createObjectURL(file));
-        }
+        if (!file) return;
+        setPhotoFile(file);
+        setPhotoPreview(URL.createObjectURL(file));
     };
 
-    const handleUpdate = async (e) => {
+    const handleSave = async (e) => {
         e.preventDefault();
-        setLoading(true);
-
-        const formData = new FormData();
-        formData.append("first_name", firstName);
-        formData.append("last_name", lastName);
-        if (password) formData.append("password", password);
-        if (photo) formData.append("profile_photo", photo);
-
+        setSaving(true);
         try {
-            await API.put("users/me/", formData, {
-                headers: { "Content-Type": "multipart/form-data" }
-            });
-            toast.success("Profile updated successfully");
+            const fd = new FormData();
+            fd.append('username', form.username);
+            fd.append('first_name', form.first_name);
+            fd.append('last_name', form.last_name);
+            if (form.password) fd.append('password', form.password);
+            if (photoFile) fd.append('profile_photo', photoFile);
+            await API.put('users/me/', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+            toast.success('Profile updated');
             setEditing(false);
-            setPassword("");
+            setPhotoFile(null);
+            setForm(f => ({ ...f, password: '' }));
             fetchProfile();
-        } catch (err) {
-            toast.error("Update failed");
+        } catch {
+            toast.error('Update failed');
         } finally {
-            setLoading(false);
+            setSaving(false);
         }
     };
 
-    if (loading && !profile) return <div className="p-8">Loading Profile...</div>;
+    const cancelEdit = () => {
+        setEditing(false);
+        setPhotoFile(null);
+        setPhotoPreview(profile?.profile_photo || null);
+        setForm({
+            username: profile?.username || '',
+            first_name: profile?.first_name || '',
+            last_name: profile?.last_name || '',
+            password: '',
+        });
+    };
+
+    const getInitials = () => {
+        const name = `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || profile?.username || '?';
+        return name.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+    };
+
+    const isAdmin = profile?.role === 'admin';
+
+    if (loading) return (
+        <div className="profile-page">
+            <div className="profile-loading">Loading profile…</div>
+        </div>
+    );
 
     return (
-        <div className="profile-container p-8" style={{ maxWidth: '900px', margin: '0 auto' }}>
-            <h1 className="page-title">User Profile</h1>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                {/* Profile Photo Card */}
-                <div className="card text-center flex flex-col items-center">
-                    <div className="profile-photo-wrapper mb-4" style={{ position: 'relative' }}>
-                        <img 
-                            src={photoPreview || "https://ui-avatars.com/api/?name=" + (profile?.email || 'User')} 
-                            alt="Profile" 
-                            style={{ width: '150px', height: '150px', borderRadius: '50%', objectFit: 'cover', border: '4px solid var(--accent-primary)' }}
-                        />
-                        {editing && (
-                            <label className="photo-upload-label" style={{ 
-                                position: 'absolute', bottom: 0, right: 0, 
-                                background: 'var(--accent-primary)', padding: '8px', 
-                                borderRadius: '50%', cursor: 'pointer', color: 'white'
-                            }}>
-                                📷
-                                <input type="file" hidden onChange={handlePhotoChange} accept="image/*" />
-                            </label>
-                        )}
-                    </div>
-                    <h3 className="mb-1">{profile?.first_name} {profile?.last_name}</h3>
-                    <p className="text-secondary small">{profile?.email}</p>
-                    <div className="badge mt-4" style={{ background: 'rgba(99, 102, 241, 0.1)', color: 'var(--accent-primary)', padding: '4px 12px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 600 }}>
-                        {profile?.role?.toUpperCase()}
-                    </div>
+        <div className="profile-page">
+            <div className="profile-header-bar">
+                <div>
+                    <h1 className="page-title" style={{ marginBottom: 4 }}>My Profile</h1>
+                    <p className="profile-subtitle">View and manage your account information</p>
                 </div>
-
-                {/* Account Settings Card */}
-                <div className="card col-span-2">
-                    <div className="flex justify-between items-center mb-6">
-                        <h3 className="m-0">Account Information</h3>
-                        <button 
-                            className={`btn-${editing ? 'secondary' : 'primary'}`} 
-                            onClick={() => setEditing(!editing)}
-                            style={{ padding: '6px 16px', fontSize: '0.9rem' }}
-                        >
-                            {editing ? "Cancel" : "Edit Profile"}
+                {!editing ? (
+                    <button className="btn-primary" onClick={() => setEditing(true)}>Edit Profile</button>
+                ) : (
+                    <div style={{ display: 'flex', gap: '0.75rem' }}>
+                        <button className="btn-secondary" onClick={cancelEdit}>Cancel</button>
+                        <button className="btn-primary" form="profile-form" type="submit" disabled={saving}>
+                            {saving ? 'Saving…' : 'Save Changes'}
                         </button>
                     </div>
+                )}
+            </div>
 
-                    <form onSubmit={handleUpdate}>
-                        <div className="grid grid-cols-2 gap-4 mb-4">
-                            <div className="form-group">
-                                <label className="text-secondary small d-block mb-1">First Name</label>
-                                <input 
-                                    type="text" 
-                                    value={firstName} 
-                                    onChange={(e) => setFirstName(e.target.value)}
-                                    disabled={!editing}
-                                    style={{ width: '100%', background: editing ? 'var(--bg-app)' : 'transparent', border: editing ? '1px solid var(--border-color)' : 'none' }}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="text-secondary small d-block mb-1">Last Name</label>
-                                <input 
-                                    type="text" 
-                                    value={lastName} 
-                                    onChange={(e) => setLastName(e.target.value)}
-                                    disabled={!editing}
-                                    style={{ width: '100%', background: editing ? 'var(--bg-app)' : 'transparent', border: editing ? '1px solid var(--border-color)' : 'none' }}
-                                />
-                            </div>
-                        </div>
+            <div className="profile-grid">
 
-                        <div className="form-group mb-6">
-                            <label className="text-secondary small d-block mb-1">Update Password</label>
-                            <input 
-                                type="password" 
-                                placeholder={editing ? "Leave blank to keep current" : "••••••••"}
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                disabled={!editing}
-                                style={{ width: '100%', background: editing ? 'var(--bg-app)' : 'transparent', border: editing ? '1px solid var(--border-color)' : 'none' }}
-                            />
-                        </div>
-
+                {/* ── Left: Avatar + Identity ── */}
+                <div className="profile-card profile-identity-card">
+                    <div className="profile-avatar-wrap">
+                        {photoPreview
+                            ? <img src={photoPreview} alt="avatar" className="profile-avatar-img" />
+                            : <div className="profile-avatar-initials">{getInitials()}</div>
+                        }
                         {editing && (
-                            <button type="submit" className="btn-primary w-100" disabled={loading}>
-                                {loading ? "Updating..." : "Save Changes"}
+                            <button
+                                type="button"
+                                className="profile-photo-btn"
+                                onClick={() => fileInputRef.current?.click()}
+                                title="Change photo"
+                            >
+                                <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
+                                    <path d="M4 5a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-1.586l-1-1H7.586l-1 1H4zm6 9a3 3 0 110-6 3 3 0 010 6z"/>
+                                </svg>
                             </button>
                         )}
-                    </form>
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            hidden
+                            accept="image/*"
+                            onChange={handlePhotoChange}
+                        />
+                    </div>
 
-                    <hr className="my-8" style={{ opacity: 0.1 }} />
+                    <div className="profile-identity-info">
+                        <div className="profile-display-name">
+                            {profile?.first_name || profile?.last_name
+                                ? `${profile.first_name} ${profile.last_name}`.trim()
+                                : profile?.username}
+                        </div>
+                        <div className="profile-email">{profile?.email}</div>
+                        <span className={`profile-role-badge ${isAdmin ? 'admin' : 'user'}`}>
+                            {isAdmin ? 'Administrator' : 'User'}
+                        </span>
+                    </div>
 
-                    <h3 className="mb-4">Organizational Attributes</h3>
-                    <div className="grid grid-cols-2 gap-y-6">
-                        <div className="attr-item">
-                            <label className="text-secondary small d-block">Geography</label>
-                            <div className="flex flex-wrap gap-2 mt-1">
-                                {profile?.geographies?.map(g => <span key={Math.random()} className="pill" style={{ background: '#1f2937', color: '#fff', padding: '2px 10px', borderRadius: '4px', fontSize: '0.8rem' }}>{g}</span>)}
-                                {(profile?.geographies?.length === 0 || !profile?.geographies) && <span className="text-secondary">Global</span>}
-                            </div>
+                    {profile?.hierarchy && (
+                        <div className="profile-hierarchy">
+                            <div className="profile-attr-label">Hierarchy Level</div>
+                            <div className="profile-hierarchy-value">{profile.hierarchy}</div>
                         </div>
-                        <div className="attr-item">
-                            <label className="text-secondary small d-block">Business Units</label>
-                            <div className="flex flex-wrap gap-2 mt-1">
-                                {profile?.business_units?.map(b => <span key={Math.random()} className="pill" style={{ background: '#1f2937', color: '#fff', padding: '2px 10px', borderRadius: '4px', fontSize: '0.8rem' }}>{b}</span>)}
-                                {(profile?.business_units?.length === 0 || !profile?.business_units) && <span className="text-secondary">Corporate</span>}
+                    )}
+                </div>
+
+                {/* ── Right: Account + Access ── */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+
+                    {/* Account settings */}
+                    <div className="profile-card">
+                        <div className="profile-card-title">Account Settings</div>
+                        <form id="profile-form" onSubmit={handleSave} className="profile-form-grid">
+                            <div className="profile-field">
+                                <label className="profile-field-label">Full Name</label>
+                                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                                    <input
+                                        className={`profile-input ${!editing ? 'readonly' : ''}`}
+                                        value={form.first_name}
+                                        onChange={e => setForm(f => ({ ...f, first_name: e.target.value }))}
+                                        placeholder="First name"
+                                        readOnly={!editing}
+                                    />
+                                    <input
+                                        className={`profile-input ${!editing ? 'readonly' : ''}`}
+                                        value={form.last_name}
+                                        onChange={e => setForm(f => ({ ...f, last_name: e.target.value }))}
+                                        placeholder="Last name"
+                                        readOnly={!editing}
+                                    />
+                                </div>
                             </div>
-                        </div>
-                        <div className="attr-item">
-                            <label className="text-secondary small d-block">Domains</label>
-                            <div className="flex flex-wrap gap-2 mt-1">
-                                {profile?.domains?.map(d => <span key={Math.random()} className="pill" style={{ background: '#1f2937', color: '#fff', padding: '2px 10px', borderRadius: '4px', fontSize: '0.8rem' }}>{d}</span>)}
+                            <div className="profile-field">
+                                <label className="profile-field-label">Username</label>
+                                <input
+                                    className={`profile-input ${!editing ? 'readonly' : ''}`}
+                                    value={form.username}
+                                    onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
+                                    readOnly={!editing}
+                                />
                             </div>
-                        </div>
-                        <div className="attr-item">
-                            <label className="text-secondary small d-block">Sub-Domains</label>
-                            <div className="flex flex-wrap gap-2 mt-1">
-                                {profile?.subdomains?.map(s => <span key={Math.random()} className="pill" style={{ background: '#1f2937', color: '#fff', padding: '2px 10px', borderRadius: '4px', fontSize: '0.8rem' }}>{s}</span>)}
+                            <div className="profile-field">
+                                <label className="profile-field-label">Email Address</label>
+                                <input
+                                    className="profile-input readonly"
+                                    value={profile?.email || ''}
+                                    readOnly
+                                />
                             </div>
+                            {editing && (
+                                <div className="profile-field">
+                                    <label className="profile-field-label">New Password <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>(leave blank to keep current)</span></label>
+                                    <input
+                                        type="password"
+                                        className="profile-input"
+                                        value={form.password}
+                                        onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                                        placeholder="Enter new password"
+                                    />
+                                </div>
+                            )}
+                        </form>
+                    </div>
+
+                    {/* Access attributes */}
+                    <div className="profile-card">
+                        <div className="profile-card-title">Organizational Access</div>
+                        <div className="profile-access-grid">
+
+                            <div className="profile-access-section">
+                                <div className="profile-attr-label">Domains</div>
+                                <div className="profile-tags">
+                                    {isAdmin
+                                        ? <AllAccessBadge />
+                                        : profile?.domains?.length > 0
+                                            ? profile.domains.map(d => <Tag key={d} label={d} />)
+                                            : <span className="profile-empty-attr">Not assigned</span>
+                                    }
+                                </div>
+                            </div>
+
+                            <div className="profile-access-section">
+                                <div className="profile-attr-label">Sub-Domains</div>
+                                <div className="profile-tags">
+                                    {isAdmin
+                                        ? <AllAccessBadge />
+                                        : profile?.subdomains?.length > 0
+                                            ? profile.subdomains.map(s => <Tag key={s} label={s} />)
+                                            : <span className="profile-empty-attr">Not assigned</span>
+                                    }
+                                </div>
+                            </div>
+
+                            <div className="profile-access-section">
+                                <div className="profile-attr-label">Geography</div>
+                                <div className="profile-tags">
+                                    {isAdmin
+                                        ? <AllAccessBadge />
+                                        : profile?.geographies?.length > 0
+                                            ? profile.geographies.map(g => <Tag key={g} label={g} />)
+                                            : <span className="profile-empty-attr">Not assigned</span>
+                                    }
+                                </div>
+                            </div>
+
+                            <div className="profile-access-section">
+                                <div className="profile-attr-label">Business Units</div>
+                                <div className="profile-tags">
+                                    {isAdmin
+                                        ? <AllAccessBadge />
+                                        : profile?.business_units?.length > 0
+                                            ? profile.business_units.map(b => <Tag key={b} label={b} />)
+                                            : <span className="profile-empty-attr">Not assigned</span>
+                                    }
+                                </div>
+                            </div>
+
                         </div>
                     </div>
+
                 </div>
             </div>
         </div>

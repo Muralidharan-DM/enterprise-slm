@@ -187,14 +187,14 @@ const UserForm = ({ mode }) => {
                     <SectionHeader number="01" color="#6366f1" title="User Information" subtitle="Basic account credentials and role assignment" />
                     <div className="um-grid-2">
                         <div>
-                            <label className="form-label">Username <span className="uf-required">*</span></label>
+                            <label className="form-label">Full Name <span className="uf-required">*</span></label>
                             <input
                                 name="username"
                                 value={form.username}
                                 onChange={handleChange}
                                 required
                                 className="form-input"
-                                placeholder="e.g. john_doe"
+                                placeholder="e.g. John Smith"
                             />
                         </div>
                         <div>

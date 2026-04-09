@@ -1,275 +1,558 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import API from '../services/api';
 import toast from 'react-hot-toast';
 import '../styles/CSG.css';
 
+// ── Step bar ──────────────────────────────────────────────────────────────────
+const StepBar = ({ current, total, labels }) => (
+    <div className="sg-stepbar">
+        {Array.from({ length: total }, (_, i) => i + 1).map((s, idx) => (
+            <React.Fragment key={s}>
+                <div className="sg-step-item">
+                    <div className={`sg-step-circle ${current >= s ? 'active' : ''} ${current > s ? 'done' : ''}`}>
+                        {current > s ? '✓' : s}
+                    </div>
+                    <span className={`sg-step-label ${current === s ? 'active' : ''}`}>{labels[idx]}</span>
+                </div>
+                {idx < total - 1 && <div className={`sg-step-line ${current > s ? 'done' : ''}`} />}
+            </React.Fragment>
+        ))}
+    </div>
+);
+
+// ── Chip toggle ───────────────────────────────────────────────────────────────
+const Chip = ({ label, selected, onClick }) => (
+    <button type="button" className={`sg-chip ${selected ? 'active' : ''}`} onClick={onClick}>
+        {label}
+    </button>
+);
+
 const CSG = () => {
     const [groups, setGroups] = useState([]);
-    const [masterData, setMasterData] = useState({
-        users: []
-    });
-    const [domainConfig, setDomainConfig] = useState({}); // Step 23.2.3.1.2
-    const [oracleSchema, setOracleSchema] = useState({});
-    const [isWizardOpen, setIsWizardOpen] = useState(false);
-    const [currentStep, setCurrentStep] = useState(1);
-    
-    // Form State
-    const [formData, setFormData] = useState({
-        id: null,
-        name: "",
-        domains: [],
-        subdomains: [],
-        datasets: [],
-        columns: {},
-        users: []
-    });
+    const [domains, setDomains] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        fetchGroups();
-        fetchMasterData();
-        fetchDomainConfig(); // Step 23.2.3.1.2
-        fetchOracleSchema();
-    }, []);
+    // Wizard
+    const [wizardOpen, setWizardOpen] = useState(false);
+    const [step, setStep] = useState(1);
+    const [editId, setEditId] = useState(null);
+    const [form, setForm] = useState({ name: '', domains: [], subdomains: [], columns: {}, users: [] });
+    const [datasetSchema, setDatasetSchema] = useState({});
+    const [schemaLoading, setSchemaLoading] = useState(false);
 
-    const fetchGroups = async () => {
+    // Detail page
+    const [view, setView] = useState('list'); // 'list' | 'detail'
+    const [detailGroup, setDetailGroup] = useState(null);
+    const [autoUsers, setAutoUsers] = useState([]);
+
+    // Add user modal
+    const [addUserOpen, setAddUserOpen] = useState(false);
+    const [availableUsers, setAvailableUsers] = useState([]);
+    const [addUserLoading, setAddUserLoading] = useState(false);
+
+    const fetchGroups = useCallback(async () => {
+        setLoading(true);
         try {
             const res = await API.get('security/csg/');
             setGroups(res.data);
-        } catch (err) { console.error("Error fetching groups", err); }
-    };
+        } catch { toast.error('Failed to load groups'); }
+        finally { setLoading(false); }
+    }, []);
 
-    const fetchDomainConfig = async () => {
+    const fetchDomains = useCallback(async () => {
         try {
-            const res = await API.get('users/domains/');
-            setDomainConfig(res.data);
-        } catch (err) { console.error("Error fetching domain config", err); }
-    };
+            const res = await API.get('users/domains/manage/');
+            setDomains(res.data);
+        } catch { }
+    }, []);
 
-    const fetchMasterData = async () => {
-        try {
-            const userRes = await API.get('users/profiles/');
-            setMasterData({
-                users: userRes.data
-            });
-        } catch (err) { console.error("Error fetching master data", err); }
-    };
+    useEffect(() => {
+        fetchGroups();
+        fetchDomains();
+    }, [fetchGroups, fetchDomains]);
 
-    const fetchOracleSchema = async () => {
-        try {
-            const res = await API.get('data-studio/oracle-schema/');
-            setOracleSchema(res.data);
-        } catch (err) { console.error("Error fetching oracle schema", err); }
-    };
+    // ── Wizard helpers ────────────────────────────────────────────────────────
 
-    const handleToggle = (item, list, field) => {
-        const newList = list.includes(item) ? list.filter(i => i !== item) : [...list, item];
-        setFormData({ ...formData, [field]: newList });
-    };
+    const availableSubdomains = domains
+        .filter(d => form.domains.includes(d.name))
+        .flatMap(d => d.subdomains);
 
-    const handleSubdomainToggle = (subName) => {
-        const isSelected = formData.subdomains.includes(subName);
-        let newSubdomains = isSelected 
-            ? formData.subdomains.filter(s => s !== subName)
-            : [...formData.subdomains, subName];
-        
-        setFormData({ ...formData, subdomains: newSubdomains });
-    };
-
-    const getAvailableSubdomains = () => {
-        let subs = [];
-        formData.domains.forEach(d => {
-            if (domainConfig[d]) subs.push(...domainConfig[d].subdomains);
-        });
-        return [...new Set(subs)];
-    };
-
-    const handleColumnToggle = (dataset, column) => {
-        const currentCols = formData.columns[dataset] || [];
-        const newCols = currentCols.includes(column) 
-            ? currentCols.filter(c => c !== column)
-            : [...currentCols, column];
-        
-        const newColumns = { ...formData.columns, [dataset]: newCols };
-        
-        // Update datasets list based on selection
-        let newDatasets = [...formData.datasets];
-        if (newCols.length > 0 && !newDatasets.includes(dataset)) {
-            newDatasets.push(dataset);
-        } else if (newCols.length === 0) {
-            newDatasets = newDatasets.filter(d => d !== dataset);
+    const toggleDomain = (name) => {
+        const removing = form.domains.includes(name);
+        const domObj = domains.find(d => d.name === name);
+        let newSubs = form.subdomains;
+        if (removing && domObj) {
+            const domSubNames = domObj.subdomains.map(s => s.name);
+            newSubs = newSubs.filter(s => !domSubNames.includes(s));
         }
-        
-        setFormData({ ...formData, columns: newColumns, datasets: newDatasets });
+        setForm(f => ({
+            ...f,
+            domains: removing ? f.domains.filter(d => d !== name) : [...f.domains, name],
+            subdomains: newSubs,
+        }));
+    };
+
+    const toggleSub = (name) => setForm(f => ({
+        ...f,
+        subdomains: f.subdomains.includes(name) ? f.subdomains.filter(s => s !== name) : [...f.subdomains, name],
+    }));
+
+    const toggleColumn = (ds, col) => setForm(f => {
+        const cols = f.columns[ds] || [];
+        return { ...f, columns: { ...f.columns, [ds]: cols.includes(col) ? cols.filter(c => c !== col) : [...cols, col] } };
+    });
+
+    const selectAllCols = (ds, allCols) => setForm(f => ({
+        ...f,
+        columns: { ...f.columns, [ds]: (f.columns[ds] || []).length === allCols.length ? [] : [...allCols] },
+    }));
+
+    const goToStep2 = async () => {
+        if (!form.name.trim()) { toast.error('Group name is required'); return; }
+        if (form.domains.length === 0) { toast.error('Select at least one domain'); return; }
+        setSchemaLoading(true);
+        try {
+            const subs = form.subdomains.length > 0 ? form.subdomains : availableSubdomains.map(s => s.name);
+            const res = await API.get(`security/datasets/?subdomains=${subs.join(',')}`);
+            setDatasetSchema(res.data);
+        } catch { toast.error('Failed to load datasets'); }
+        finally { setSchemaLoading(false); }
+        setStep(2);
     };
 
     const handleSubmit = async () => {
         try {
-            if (formData.id) {
-                await API.put(`security/csg/${formData.id}/update/`, formData);
+            const payload = {
+                name: form.name,
+                domains: form.domains,
+                subdomains: form.subdomains,
+                datasets: Object.keys(form.columns).filter(k => (form.columns[k] || []).length > 0),
+                columns: form.columns,
+                users: [],
+            };
+            if (editId) {
+                await API.put(`security/csg/${editId}/update/`, payload);
+                toast.success('CSG updated');
             } else {
-                await API.post('security/csg/create/', formData);
+                await API.post('security/csg/create/', payload);
+                toast.success('CSG created — domain users auto-added');
             }
-            setIsWizardOpen(false);
+            setWizardOpen(false);
             fetchGroups();
-            toast.success("CSG Saved successfully!");
-        } catch (err) {
-            console.error("Error saving CSG", err);
-            toast.error("Failed to save CSG.");
-        }
+        } catch { toast.error('Failed to save group'); }
     };
 
-    const handleEdit = async (group) => {
+    const openCreate = () => {
+        setEditId(null);
+        setForm({ name: '', domains: [], subdomains: [], columns: {}, users: [] });
+        setDatasetSchema({});
+        setStep(1);
+        setWizardOpen(true);
+    };
+
+    const openEdit = async (g) => {
         try {
-            const res = await API.get(`security/csg/${group.id}/`);
-            const data = res.data;
-            // Resolve names back to IDs for the form
-            const domainIds = masterData.domains.filter(d => data.domains.includes(d)).map(d => d); 
-            // Wait, we need the actual IDs. Let's assume masterData contains names for now as per serializer.
-            // Simplified: Use names as IDs if that's what the backend expects, but the backend uses IDs.
-            // Refinement: I'll update the view to resolve names if needed, but for now I'll use IDs.
-            
-            setFormData({
-                id: data.id,
-                name: data.name,
-                domains: data.domains, // names
-                subdomains: data.subdomains, // names 
-                datasets: data.datasets,
-                columns: data.columns,
-                users: data.users // emails
-            });
-            setCurrentStep(1);
-            setIsWizardOpen(true);
-        } catch (err) { console.error("Error fetching group detail", err); }
+            const res = await API.get(`security/csg/${g.id}/`);
+            const d = res.data;
+            setEditId(d.id);
+            setForm({ name: d.name, domains: d.domains, subdomains: d.subdomains, columns: d.columns, users: d.users });
+            setDatasetSchema({});
+            setStep(1);
+            setWizardOpen(true);
+        } catch { toast.error('Failed to load group'); }
     };
 
+    const openDetail = async (g) => {
+        try {
+            const [detRes, autoRes] = await Promise.all([
+                API.get(`security/csg/${g.id}/`),
+                API.get(`security/csg/${g.id}/auto-users/`),
+            ]);
+            setDetailGroup(detRes.data);
+            setAutoUsers(autoRes.data || []);
+        } catch {
+            setDetailGroup(g);
+            setAutoUsers([]);
+        }
+        setView('detail');
+    };
+
+    const refreshDetail = async (id) => {
+        const [detRes, autoRes] = await Promise.all([
+            API.get(`security/csg/${id}/`),
+            API.get(`security/csg/${id}/auto-users/`),
+        ]);
+        setDetailGroup(detRes.data);
+        setAutoUsers(autoRes.data || []);
+    };
+
+    const handleDelete = async (id) => {
+        if (!window.confirm('Delete this column security group?')) return;
+        try {
+            await API.delete(`security/csg/${id}/delete/`);
+            toast.success('Group deleted');
+            fetchGroups();
+        } catch { toast.error('Delete failed'); }
+    };
+
+    // ── Add user ──────────────────────────────────────────────────────────────
+
+    const openAddUser = async () => {
+        setAddUserLoading(true);
+        setAddUserOpen(true);
+        try {
+            const res = await API.get(`security/csg/${detailGroup.id}/available-users/`);
+            setAvailableUsers(res.data || []);
+        } catch { setAvailableUsers([]); }
+        finally { setAddUserLoading(false); }
+    };
+
+    const addUser = async (email) => {
+        try {
+            await API.post(`security/csg/${detailGroup.id}/add-user/`, { email });
+            toast.success(`${email} added`);
+            setAvailableUsers(prev => prev.filter(u => u.email !== email));
+            await refreshDetail(detailGroup.id);
+        } catch { toast.error('Failed to add user'); }
+    };
+
+    const totalRestrictedCols = (g) => Object.values(g.columns || {}).reduce((s, c) => s + c.length, 0);
+
+    // ── Detail page ───────────────────────────────────────────────────────────
+    if (view === 'detail' && detailGroup) {
+        const autoEmails = new Set(autoUsers.map(u => u.email));
+        const manualUsers = (detailGroup.users || []).filter(e => !autoEmails.has(e));
+
+        return (
+            <div className="sg-page">
+                {/* Detail header */}
+                <div className="sg-detail-topbar">
+                    <button className="sg-back-btn" onClick={() => { setView('list'); fetchGroups(); }}>
+                        ← Back to Groups
+                    </button>
+                    <div className="sg-detail-topbar-actions">
+                        <button className="btn-secondary" onClick={() => openEdit(detailGroup)}>✏️ Edit Group</button>
+                        <button className="btn-danger" onClick={async () => { await handleDelete(detailGroup.id); setView('list'); }}>🗑️ Delete</button>
+                    </div>
+                </div>
+
+                <div className="sg-detail-hero">
+                    <div className="sg-card-icon csg-icon" style={{ width: 56, height: 56, fontSize: '1.8rem' }}>🔐</div>
+                    <div>
+                        <h1 className="sg-detail-title">{detailGroup.name}</h1>
+                        <span className="sg-type-badge csg-badge">Column Security Group</span>
+                    </div>
+                </div>
+
+                {/* Scope card */}
+                <div className="sg-detail-card">
+                    <div className="sg-detail-card-title">Scope</div>
+                    <div className="sg-detail-row">
+                        <span className="sg-detail-label">Domains</span>
+                        <div className="sg-chip-row">
+                            {(detailGroup.domains || []).map(d => <span key={d} className="sg-tag domain">{d}</span>)}
+                            {(detailGroup.domains || []).length === 0 && <span className="sg-empty-text">None</span>}
+                        </div>
+                    </div>
+                    <div className="sg-detail-row">
+                        <span className="sg-detail-label">Subdomains</span>
+                        <div className="sg-chip-row">
+                            {(detailGroup.subdomains || []).map(s => <span key={s} className="sg-tag sub">{s}</span>)}
+                            {(detailGroup.subdomains || []).length === 0 && <span className="sg-empty-text">All subdomains</span>}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Column restrictions card */}
+                <div className="sg-detail-card">
+                    <div className="sg-detail-card-title">Column Restrictions</div>
+                    {Object.entries(detailGroup.columns || {}).filter(([, c]) => c.length > 0).length === 0
+                        ? <span className="sg-empty-text">No columns restricted</span>
+                        : Object.entries(detailGroup.columns || {}).filter(([, c]) => c.length > 0).map(([ds, cols]) => (
+                            <div key={ds} className="sg-review-ds" style={{ marginBottom: '0.75rem' }}>
+                                <span className="sg-review-ds-name">📂 {ds}</span>
+                                <div className="sg-chip-row" style={{ marginTop: '0.4rem' }}>
+                                    {cols.map(c => <span key={c} className="sg-col-chip selected">{c}</span>)}
+                                </div>
+                            </div>
+                        ))
+                    }
+                </div>
+
+                {/* Users card */}
+                <div className="sg-detail-card">
+                    <div className="sg-detail-card-head">
+                        <div className="sg-detail-card-title" style={{ marginBottom: 0 }}>Users</div>
+                        <button className="btn-primary sg-btn-sm" onClick={openAddUser}>+ Add User</button>
+                    </div>
+
+                    {autoUsers.length === 0 && manualUsers.length === 0 && (
+                        <p className="sg-empty-text" style={{ marginTop: '0.75rem' }}>No users in this group yet.</p>
+                    )}
+
+                    {autoUsers.length > 0 && (
+                        <div className="sg-user-section">
+                            <div className="sg-user-section-label">Auto-matched <span className="sg-label-hint">(by domain/subdomain)</span></div>
+                            <div className="sg-user-list">
+                                {autoUsers.map(u => (
+                                    <div key={u.email} className="sg-user-row">
+                                        <span className="sg-avatar">{u.email[0].toUpperCase()}</span>
+                                        <div className="sg-user-info">
+                                            <span className="sg-user-email">{u.email}</span>
+                                            {u.username && <span className="sg-user-name">{u.username}</span>}
+                                        </div>
+                                        <span className="sg-badge auto">Auto</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {manualUsers.length > 0 && (
+                        <div className="sg-user-section">
+                            <div className="sg-user-section-label">Manually added</div>
+                            <div className="sg-user-list">
+                                {manualUsers.map(email => (
+                                    <div key={email} className="sg-user-row">
+                                        <span className="sg-avatar">{email[0].toUpperCase()}</span>
+                                        <div className="sg-user-info">
+                                            <span className="sg-user-email">{email}</span>
+                                        </div>
+                                        <span className="sg-badge manual">Manual</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Add User modal */}
+                {addUserOpen && (
+                    <div className="sg-overlay" onClick={() => setAddUserOpen(false)}>
+                        <div className="sg-mini-modal" onClick={e => e.stopPropagation()}>
+                            <div className="sg-mini-modal-head">
+                                <h3>Add User from Scope</h3>
+                                <button className="sg-close" onClick={() => setAddUserOpen(false)}>✕</button>
+                            </div>
+                            <p className="sg-mini-modal-hint">Users from the same domain/subdomain not yet in this group:</p>
+                            {addUserLoading ? (
+                                <div className="sg-loading-msg">Loading...</div>
+                            ) : availableUsers.length === 0 ? (
+                                <p className="sg-empty-text" style={{ padding: '1rem 0' }}>All domain/subdomain users are already in this group.</p>
+                            ) : (
+                                <div className="sg-user-list">
+                                    {availableUsers.map(u => (
+                                        <div key={u.email} className="sg-user-row">
+                                            <span className="sg-avatar">{u.email[0].toUpperCase()}</span>
+                                            <div className="sg-user-info">
+                                                <span className="sg-user-email">{u.email}</span>
+                                                {u.username && <span className="sg-user-name">{u.username}</span>}
+                                            </div>
+                                            <button className="btn-primary sg-btn-sm" onClick={() => addUser(u.email)}>Add</button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* Wizard (edit) */}
+                {wizardOpen && (
+                    <div className="sg-overlay" onClick={() => setWizardOpen(false)}>
+                        <div className="sg-wizard" onClick={e => e.stopPropagation()}>
+                            <div className="sg-wizard-head">
+                                <h2>Edit Column Security Group</h2>
+                                <button className="sg-close" onClick={() => setWizardOpen(false)}>✕</button>
+                            </div>
+                            <StepBar current={step} total={3} labels={['Scope', 'Columns', 'Review & Save']} />
+                            <div className="sg-wizard-body">{renderWizardBody()}</div>
+                            <div className="sg-wizard-footer">
+                                {step > 1 && <button className="btn-secondary" onClick={() => setStep(s => s - 1)}>← Back</button>}
+                                <div style={{ flex: 1 }} />
+                                {step === 1 && <button className="btn-primary" onClick={goToStep2}>Next →</button>}
+                                {step === 2 && <button className="btn-primary" onClick={() => setStep(3)}>Next →</button>}
+                                {step === 3 && <button className="btn-primary" onClick={async () => { await handleSubmit(); await refreshDetail(editId); }}>Save Policy</button>}
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    // ── Wizard body (shared between list and detail views) ────────────────────
+    const renderWizardBody = () => (
+        <>
+            {step === 1 && (
+                <div className="sg-step-pane">
+                    <div className="sg-field">
+                        <label className="sg-label">Group Name</label>
+                        <input
+                            className="form-input"
+                            placeholder="e.g. Sales Finance Policy"
+                            value={form.name}
+                            onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                            autoFocus
+                        />
+                    </div>
+                    <div className="sg-field">
+                        <label className="sg-label">Select Domains</label>
+                        <div className="sg-chip-row">
+                            {domains.map(d => (
+                                <Chip key={d.id} label={d.name} selected={form.domains.includes(d.name)} onClick={() => toggleDomain(d.name)} />
+                            ))}
+                        </div>
+                    </div>
+                    {availableSubdomains.length > 0 && (
+                        <div className="sg-field">
+                            <label className="sg-label">Select Subdomains <span className="sg-label-hint">(optional — defaults to all)</span></label>
+                            <div className="sg-chip-row">
+                                {availableSubdomains.map(s => (
+                                    <Chip key={s.id} label={s.name} selected={form.subdomains.includes(s.name)} onClick={() => toggleSub(s.name)} />
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+            {step === 2 && (
+                <div className="sg-step-pane">
+                    <p className="sg-step-hint">Select columns to <strong>restrict</strong> per dataset.</p>
+                    {schemaLoading ? (
+                        <div className="sg-loading-msg">Loading datasets...</div>
+                    ) : Object.keys(datasetSchema).length === 0 ? (
+                        <div className="sg-loading-msg">No datasets found for selected scope.</div>
+                    ) : (
+                        <div className="sg-ds-list">
+                            {Object.entries(datasetSchema).map(([dsName, cols]) => (
+                                <div key={dsName} className="sg-ds-block">
+                                    <div className="sg-ds-header">
+                                        <span>📂 <strong>{dsName}</strong></span>
+                                        <button type="button" className="sg-chip sg-chip-sm" onClick={() => selectAllCols(dsName, cols)}>
+                                            {(form.columns[dsName] || []).length === cols.length ? 'Deselect All' : 'Select All'}
+                                        </button>
+                                    </div>
+                                    <div className="sg-col-grid">
+                                        {cols.map(col => (
+                                            <label key={col} className={`sg-col-chip ${(form.columns[dsName] || []).includes(col) ? 'selected' : ''}`}>
+                                                <input type="checkbox" checked={(form.columns[dsName] || []).includes(col)} onChange={() => toggleColumn(dsName, col)} style={{ display: 'none' }} />
+                                                {col}
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+            {step === 3 && (
+                <div className="sg-step-pane">
+                    <div className="sg-review-block">
+                        <div className="sg-review-label">Group Name</div>
+                        <div className="sg-review-value">{form.name}</div>
+                    </div>
+                    <div className="sg-review-block">
+                        <div className="sg-review-label">Domains</div>
+                        <div className="sg-chip-row">
+                            {form.domains.map(d => <span key={d} className="sg-tag domain">{d}</span>)}
+                            {form.domains.length === 0 && <span className="sg-empty-text">None</span>}
+                        </div>
+                    </div>
+                    <div className="sg-review-block">
+                        <div className="sg-review-label">Subdomains</div>
+                        <div className="sg-chip-row">
+                            {form.subdomains.map(s => <span key={s} className="sg-tag sub">{s}</span>)}
+                            {form.subdomains.length === 0 && <span className="sg-empty-text">All subdomains</span>}
+                        </div>
+                    </div>
+                    <div className="sg-review-block">
+                        <div className="sg-review-label">Column Restrictions</div>
+                        {Object.entries(form.columns).filter(([, c]) => c.length > 0).length === 0
+                            ? <span className="sg-empty-text">No columns restricted</span>
+                            : Object.entries(form.columns).filter(([, c]) => c.length > 0).map(([ds, cols]) => (
+                                <div key={ds} className="sg-review-ds">
+                                    <span className="sg-review-ds-name">📂 {ds}</span>
+                                    <div className="sg-chip-row" style={{ marginTop: '0.4rem' }}>
+                                        {cols.map(c => <span key={c} className="sg-col-chip selected">{c}</span>)}
+                                    </div>
+                                </div>
+                            ))
+                        }
+                    </div>
+                    <div className="sg-review-block">
+                        <div className="sg-review-label">Users</div>
+                        <p className="sg-step-hint" style={{ margin: 0 }}>Users matching the selected domain/subdomain will be auto-added after save. Additional users can be added from the detail page.</p>
+                    </div>
+                </div>
+            )}
+        </>
+    );
+
+    // ── List view ─────────────────────────────────────────────────────────────
     return (
-        <div className="csg-container">
-            <div className="flex justify-between items-center mb-8">
+        <div className="sg-page">
+            <div className="sg-header">
                 <div>
                     <h1 className="page-title">Column Security Groups</h1>
-                    <p className="text-secondary">Define field-level visibility policies for datasets.</p>
+                    <p className="sg-subtitle">Define field-level visibility policies for datasets.</p>
                 </div>
-                <button className="btn-primary" onClick={() => {
-                    setFormData({ id: null, name: "", domains: [], subdomains: [], datasets: [], columns: {}, users: [] });
-                    setCurrentStep(1);
-                    setIsWizardOpen(true);
-                }}>+ Create CSG</button>
+                <button className="btn-primary" onClick={openCreate}>+ Create CSG</button>
             </div>
 
-            <div className="csg-grid">
-                {groups.map(group => (
-                    <div key={group.id} className="card">
-                        <h3 className="mb-2">{group.name}</h3>
-                        <div className="flex gap-4 mb-4">
-                            <span className="text-secondary small">📦 {group.datasets.length} Datasets</span>
-                            <span className="text-secondary small">👥 {group.users.length} Users</span>
-                        </div>
-                        <button className="btn-primary" style={{ width: '100%', fontSize: '0.9rem', padding: '6px' }} onClick={() => handleEdit(group)}>View / Edit</button>
-                    </div>
-                ))}
-            </div>
-
-            {isWizardOpen && (
-                <div className="wizard-overlay">
-                    <div className="wizard-content">
-                        <div className="wizard-header">
-                            <h2>{formData.id ? 'Edit' : 'Create'} Security Group</h2>
-                            <button className="cancel-btn" onClick={() => setIsWizardOpen(false)}>×</button>
-                        </div>
-
-                        <div className="wizard-steps">
-                            <div className={`step-indicator ${currentStep >= 1 ? 'active' : ''}`}>1</div>
-                            <div className={`step-indicator ${currentStep >= 2 ? 'active' : ''}`}>2</div>
-                            <div className={`step-indicator ${currentStep >= 3 ? 'active' : ''}`}>3</div>
-                        </div>
-
-                        {currentStep === 1 && (
-                            <div className="step-content">
-                                <h3>Step 1: Group Name & Scope</h3>
-                                <input 
-                                    className="hierarchy-select" 
-                                    placeholder="Enter Group Name" 
-                                    value={formData.name}
-                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                />
-                                
-                                <p className="section-title">Domains</p>
-                                <div className="chip-group">
-                                    {Object.keys(domainConfig).map(dom => (
-                                        <div 
-                                            key={dom} 
-                                            className={`chip ${formData.domains.includes(dom) ? 'selected' : ''}`}
-                                            onClick={() => handleToggle(dom, formData.domains, 'domains')}
-                                        >
-                                            {dom}
-                                        </div>
-                                    ))}
-                                </div>
-
-                                <p className="section-title">Subdomains (Dynamic)</p>
-                                <div className="chip-group">
-                                    {getAvailableSubdomains().map(sub => (
-                                        <div 
-                                            key={sub} 
-                                            className={`chip ${formData.subdomains.includes(sub) ? 'selected' : ''}`}
-                                            onClick={() => handleSubdomainToggle(sub)}
-                                        >
-                                            {sub}
-                                        </div>
-                                    ))}
+            {loading ? (
+                <div className="sg-empty">Loading...</div>
+            ) : groups.length === 0 ? (
+                <div className="sg-empty">
+                    <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔒</div>
+                    <p>No column security groups yet. Create one to restrict field visibility.</p>
+                </div>
+            ) : (
+                <div className="sg-grid">
+                    {groups.map(g => (
+                        <div key={g.id} className="sg-card">
+                            <div className="sg-card-head">
+                                <div className="sg-card-icon csg-icon">🔐</div>
+                                <div>
+                                    <div className="sg-card-name">{g.name}</div>
+                                    <div className="sg-card-meta">
+                                        <span>📊 {(g.datasets || []).length} datasets</span>
+                                        <span>🔑 {totalRestrictedCols(g)} cols restricted</span>
+                                        <span>👥 {(g.users || []).length} users</span>
+                                    </div>
                                 </div>
                             </div>
-                        )}
-
-                        {currentStep === 2 && (
-                            <div className="step-content">
-                                <h3>Step 2: Datasets & Columns</h3>
-                                <div className="dataset-tree">
-                                    {Object.entries(oracleSchema).map(([dataset, columns]) => (
-                                        <div key={dataset} className="dataset-item">
-                                            <div className="dataset-name">📂 {dataset}</div>
-                                            <div className="column-list">
-                                                {columns.map(col => (
-                                                    <div key={col} className="column-item">
-                                                        <input 
-                                                            type="checkbox" 
-                                                            checked={(formData.columns[dataset] || []).includes(col)}
-                                                            onChange={() => handleColumnToggle(dataset, col)}
-                                                        />
-                                                        {col}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
+                            <div className="sg-card-tags">
+                                {(g.domains || []).map(d => <span key={d} className="sg-tag domain">{d}</span>)}
+                                {(g.subdomains || []).map(s => <span key={s} className="sg-tag sub">{s}</span>)}
                             </div>
-                        )}
-
-                        {currentStep === 3 && (
-                            <div className="step-content">
-                                <h3>Step 3: Assign Users</h3>
-                                <div className="chip-group">
-                                    {masterData.users.map(user => (
-                                        <div 
-                                            key={user.id} 
-                                            className={`chip ${formData.users.includes(user.email) ? 'selected' : ''}`}
-                                            onClick={() => handleToggle(user.email, formData.users, 'users')}
-                                        >
-                                            {user.email}
-                                        </div>
-                                    ))}
-                                </div>
+                            <div className="sg-card-actions">
+                                <button className="btn-secondary sg-btn-view" onClick={() => openDetail(g)}>View Details</button>
+                                <button className="sg-icon-btn" title="Edit" onClick={() => openEdit(g)}>✏️</button>
+                                <button className="sg-icon-btn danger" title="Delete" onClick={() => handleDelete(g.id)}>🗑️</button>
                             </div>
-                        )}
+                        </div>
+                    ))}
+                </div>
+            )}
 
-                        <div className="modal-actions">
-                            {currentStep > 1 && <button className="btn-secondary" onClick={() => setCurrentStep(currentStep - 1)}>Back</button>}
-                            {currentStep < 3 ? (
-                                <button className="btn-primary" onClick={() => setCurrentStep(currentStep + 1)}>Next Step</button>
-                            ) : (
-                                <button className="btn-primary" onClick={handleSubmit}>Save Policy</button>
-                            )}
+            {/* ── Wizard ──────────────────────────────────────────────────────── */}
+            {wizardOpen && (
+                <div className="sg-overlay" onClick={() => setWizardOpen(false)}>
+                    <div className="sg-wizard" onClick={e => e.stopPropagation()}>
+                        <div className="sg-wizard-head">
+                            <h2>{editId ? 'Edit' : 'Create'} Column Security Group</h2>
+                            <button className="sg-close" onClick={() => setWizardOpen(false)}>✕</button>
+                        </div>
+                        <StepBar current={step} total={3} labels={['Scope', 'Columns', 'Review & Save']} />
+                        <div className="sg-wizard-body">{renderWizardBody()}</div>
+                        <div className="sg-wizard-footer">
+                            {step > 1 && <button className="btn-secondary" onClick={() => setStep(s => s - 1)}>← Back</button>}
+                            <div style={{ flex: 1 }} />
+                            {step === 1 && <button className="btn-primary" onClick={goToStep2}>Next →</button>}
+                            {step === 2 && <button className="btn-primary" onClick={() => setStep(3)}>Next →</button>}
+                            {step === 3 && <button className="btn-primary" onClick={handleSubmit}>Save Policy</button>}
                         </div>
                     </div>
                 </div>

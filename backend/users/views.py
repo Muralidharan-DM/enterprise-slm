@@ -83,9 +83,14 @@ def login_user(request):
 def my_profile(request):
     profile, _ = UserProfile.objects.get_or_create(user=request.user)
     if request.method == 'GET':
+        photo_url = None
+        if profile.profile_photo:
+            photo_url = request.build_absolute_uri(profile.profile_photo.url)
         return Response({
             "id": request.user.id,
             "username": request.user.username,
+            "first_name": request.user.first_name,
+            "last_name": request.user.last_name,
             "email": request.user.email,
             "role": profile.role,
             "hierarchy": profile.hierarchy_level.name if profile.hierarchy_level else "",
@@ -93,15 +98,20 @@ def my_profile(request):
             "subdomains": _profile_subdomains(profile),
             "geographies": _profile_geographies(profile),
             "business_units": _profile_business_units(profile),
+            "profile_photo": photo_url,
         })
     if request.method == 'PUT':
         if "username" in request.data:
             request.user.username = request.data["username"]
-        if "email" in request.data:
-            request.user.email = request.data["email"]
+        if "first_name" in request.data:
+            request.user.first_name = request.data["first_name"]
+        if "last_name" in request.data:
+            request.user.last_name = request.data["last_name"]
+        if "password" in request.data and request.data["password"]:
+            request.user.set_password(request.data["password"])
         request.user.save()
-        profile.role = request.data.get("role", profile.role)
-        _set_m2m(profile, request.data)
+        if "profile_photo" in request.FILES:
+            profile.profile_photo = request.FILES["profile_photo"]
         profile.save()
         return Response({"message": "Profile updated successfully"})
 
