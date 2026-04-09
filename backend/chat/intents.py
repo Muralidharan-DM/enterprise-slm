@@ -1,43 +1,73 @@
-# Granular Intent Mapping for Seeded Analytics
+# Intent mapping — keywords → dataset name (must match analytics/seed_data.py keys)
 INTENT_MAP = {
-    # 1. Customers
-    "high_credit_customers": {
-        "keywords": ["credit", "limit", "top consumers", "high credit"],
-        "dataset": "customers"
+    # Revenue
+    "revenue_analysis": {
+        "keywords": ["revenue", "income", "earnings", "sales amount", "money made", "growth rate", "target revenue"],
+        "dataset": "Revenue",
+        "label": "Revenue Analysis",
     },
-    "customer_list": {
-        "keywords": ["all customers", "client list", "shopper directory"],
-        "dataset": "customers"
+    # Orders
+    "orders_analysis": {
+        "keywords": ["order", "orders", "transaction", "purchase", "fulfillment", "shipped", "pending", "order status"],
+        "dataset": "Orders",
+        "label": "Orders Analysis",
     },
-    
-    # 2. Orders & Sales
-    "all_orders": {
-        "keywords": ["orders", "transactions", "purchases"],
-        "dataset": "orders"
+    # Customers
+    "customer_analysis": {
+        "keywords": ["customer", "client", "shopper", "buyer", "lifetime value", "segment", "account"],
+        "dataset": "Customers",
+        "label": "Customer Analysis",
     },
-    "sales_summary": {
-        "keywords": ["total sales", "revenue sum", "order volume"],
-        "dataset": "orders"
+    # Catalog / Products
+    "catalog_analysis": {
+        "keywords": ["product", "catalog", "item", "stock", "price", "sku", "inventory"],
+        "dataset": "Catalog",
+        "label": "Product Catalog",
     },
-    
-    # 3. Inventory
-    "inventory_stock": {
-        "keywords": ["inventory", "warehouse", "stock", "in stock"],
-        "dataset": "inventory"
+    # Categories
+    "category_analysis": {
+        "keywords": ["category", "categories", "product type", "parent category", "classification"],
+        "dataset": "Categories",
+        "label": "Category Analysis",
     },
-    
-    # 4. Revenue
-    "monthly_revenue": {
-        "keywords": ["revenue", "monthly", "trend", "money made"],
-        "dataset": "revenue"
+    # Demographics
+    "demographics_analysis": {
+        "keywords": ["demographic", "age group", "gender", "income band", "headcount", "population", "segment distribution"],
+        "dataset": "Demographics",
+        "label": "Demographics Analysis",
     },
-    
-    # 5. Employees
-    "employee_directory": {
-        "keywords": ["employees", "staff", "workers", "headcount"],
-        "dataset": "employees"
-    }
+    # Geography
+    "geography_analysis": {
+        "keywords": ["geography", "country", "city", "region", "zone", "territory", "location", "office"],
+        "dataset": "Geography",
+        "label": "Geography Analysis",
+    },
+    # Costs
+    "costs_analysis": {
+        "keywords": ["cost", "costs", "expense", "budget", "spending", "variance", "actual spend", "opex"],
+        "dataset": "Costs",
+        "label": "Cost Analysis",
+    },
+    # Profit
+    "profit_analysis": {
+        "keywords": ["profit", "margin", "business unit", "yoy", "year over year", "profitability", "net"],
+        "dataset": "Profit",
+        "label": "Profit & Margin Analysis",
+    },
+    # Trends
+    "trends_analysis": {
+        "keywords": ["trend", "trends", "index", "baseline", "direction", "nps", "dau", "churn", "performance trend"],
+        "dataset": "Trends",
+        "label": "Trends Analysis",
+    },
+    # Forecasting
+    "forecast_analysis": {
+        "keywords": ["forecast", "predict", "prediction", "confidence", "deviation", "projected", "projection", "outlook"],
+        "dataset": "Forecasting",
+        "label": "Forecasting & Predictions",
+    },
 }
+
 
 def detect_intent(query):
     query = query.lower()

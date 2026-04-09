@@ -265,9 +265,9 @@ const CSG = () => {
 
                 {/* Column restrictions card */}
                 <div className="sg-detail-card">
-                    <div className="sg-detail-card-title">Column Restrictions</div>
+                    <div className="sg-detail-card-title">Exclusive Columns</div>
                     {Object.entries(detailGroup.columns || {}).filter(([, c]) => c.length > 0).length === 0
-                        ? <span className="sg-empty-text">No columns restricted</span>
+                        ? <span className="sg-empty-text">No exclusive columns defined</span>
                         : Object.entries(detailGroup.columns || {}).filter(([, c]) => c.length > 0).map(([ds, cols]) => (
                             <div key={ds} className="sg-review-ds" style={{ marginBottom: '0.75rem' }}>
                                 <span className="sg-review-ds-name">📂 {ds}</span>
@@ -382,7 +382,7 @@ const CSG = () => {
     }
 
     // ── Wizard body (shared between list and detail views) ────────────────────
-    const renderWizardBody = () => (
+    function renderWizardBody() { return (
         <>
             {step === 1 && (
                 <div className="sg-step-pane">
@@ -418,7 +418,7 @@ const CSG = () => {
             )}
             {step === 2 && (
                 <div className="sg-step-pane">
-                    <p className="sg-step-hint">Select columns to <strong>restrict</strong> per dataset.</p>
+                    <p className="sg-step-hint">Select columns that will be <strong>exclusively visible</strong> to this group's members. Non-members will not see these columns.</p>
                     {schemaLoading ? (
                         <div className="sg-loading-msg">Loading datasets...</div>
                     ) : Object.keys(datasetSchema).length === 0 ? (
@@ -468,9 +468,9 @@ const CSG = () => {
                         </div>
                     </div>
                     <div className="sg-review-block">
-                        <div className="sg-review-label">Column Restrictions</div>
+                        <div className="sg-review-label">Exclusive Columns</div>
                         {Object.entries(form.columns).filter(([, c]) => c.length > 0).length === 0
-                            ? <span className="sg-empty-text">No columns restricted</span>
+                            ? <span className="sg-empty-text">No exclusive columns defined</span>
                             : Object.entries(form.columns).filter(([, c]) => c.length > 0).map(([ds, cols]) => (
                                 <div key={ds} className="sg-review-ds">
                                     <span className="sg-review-ds-name">📂 {ds}</span>
@@ -488,7 +488,7 @@ const CSG = () => {
                 </div>
             )}
         </>
-    );
+    ); }
 
     // ── List view ─────────────────────────────────────────────────────────────
     return (
@@ -496,7 +496,7 @@ const CSG = () => {
             <div className="sg-header">
                 <div>
                     <h1 className="page-title">Column Security Groups</h1>
-                    <p className="sg-subtitle">Define field-level visibility policies for datasets.</p>
+                    <p className="sg-subtitle">Define columns exclusively visible to group members.</p>
                 </div>
                 <button className="btn-primary" onClick={openCreate}>+ Create CSG</button>
             </div>
@@ -518,7 +518,7 @@ const CSG = () => {
                                     <div className="sg-card-name">{g.name}</div>
                                     <div className="sg-card-meta">
                                         <span>📊 {(g.datasets || []).length} datasets</span>
-                                        <span>🔑 {totalRestrictedCols(g)} cols restricted</span>
+                                        <span>🔑 {totalRestrictedCols(g)} exclusive cols</span>
                                         <span>👥 {(g.users || []).length} users</span>
                                     </div>
                                 </div>

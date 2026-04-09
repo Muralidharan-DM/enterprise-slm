@@ -26,6 +26,34 @@ const Chip = ({ label, selected, onClick }) => (
     </button>
 );
 
+const OPERATORS = [
+    { value: '=',          label: '= equals' },
+    { value: '!=',         label: '≠ not equals' },
+    { value: '>',          label: '> greater than' },
+    { value: '<',          label: '< less than' },
+    { value: '>=',         label: '≥ greater or equal' },
+    { value: '<=',         label: '≤ less or equal' },
+    { value: 'contains',   label: 'contains' },
+    { value: 'starts_with',label: 'starts with' },
+    { value: 'ends_with',  label: 'ends with' },
+];
+
+// Normalize filters loaded from backend to {ds: {col: {op, value}}} format
+const normalizeFilters = (filters) => {
+    const result = {};
+    for (const [ds, dsf] of Object.entries(filters || {})) {
+        if (typeof dsf === 'object' && !Array.isArray(dsf)) {
+            result[ds] = {};
+            for (const [col, val] of Object.entries(dsf)) {
+                result[ds][col] = (typeof val === 'object' && val !== null)
+                    ? val
+                    : { op: '=', value: String(val) };
+            }
+        }
+    }
+    return result;
+};
+
 const RSG = () => {
     const [groups, setGroups] = useState([]);
     const [domains, setDomains] = useState([]);
@@ -94,13 +122,30 @@ const RSG = () => {
         subdomains: f.subdomains.includes(name) ? f.subdomains.filter(s => s !== name) : [...f.subdomains, name],
     }));
 
-    const setFilter = (ds, col, value) => {
+    // Set the operator for a column filter
+    const setFilterOp = (ds, col, op) => {
+        setForm(f => {
+            const dsFilters = { ...(f.filters[ds] || {}) };
+            const current = dsFilters[col] || { op: '=', value: '' };
+            dsFilters[col] = { ...current, op };
+            return { ...f, filters: { ...f.filters, [ds]: dsFilters } };
+        });
+    };
+
+    // Set the value for a column filter; removes the entry when value is cleared
+    const setFilterValue = (ds, col, value) => {
         setForm(f => {
             const dsFilters = { ...(f.filters[ds] || {}) };
             if (value.trim() === '') {
                 delete dsFilters[col];
+                if (Object.keys(dsFilters).length === 0) {
+                    const newFilters = { ...f.filters };
+                    delete newFilters[ds];
+                    return { ...f, filters: newFilters };
+                }
             } else {
-                dsFilters[col] = value;
+                const current = dsFilters[col] || { op: '=', value: '' };
+                dsFilters[col] = { ...current, value };
             }
             return { ...f, filters: { ...f.filters, [ds]: dsFilters } };
         });
@@ -166,7 +211,13 @@ const RSG = () => {
             const res = await API.get(`security/rsg/${g.id}/`);
             const d = res.data;
             setEditId(d.id);
-            setForm({ name: d.name, domains: d.domains, subdomains: d.subdomains, filters: d.filters || {}, users: d.users });
+            setForm({
+                name: d.name,
+                domains: d.domains,
+                subdomains: d.subdomains,
+                filters: normalizeFilters(d.filters),
+                users: d.users,
+            });
             setDatasetSchema({});
             setStep(1);
             setWizardOpen(true);
@@ -237,6 +288,13 @@ const RSG = () => {
         return 0;
     };
 
+    // Render a filter tag like:  REGION = "APAC"  or  AMOUNT > "1000"
+    const FilterTag = ({ col, filterVal }) => {
+        const op = typeof filterVal === 'object' ? (filterVal.op || '=') : '=';
+        const val = typeof filterVal === 'object' ? (filterVal.value ?? '') : filterVal;
+        return <span className="sg-filter-tag">{col} {op} "{val}"</span>;
+    };
+
     // ── Detail page ───────────────────────────────────────────────────────────
     if (view === 'detail' && detailGroup) {
         const autoEmails = new Set(autoUsers.map(u => u.email));
@@ -286,21 +344,19 @@ const RSG = () => {
                     <div className="sg-detail-card-title">Active Row Filters</div>
                     {Object.keys(detailGroup.filters || {}).length === 0
                         ? <span className="sg-empty-text">No filters defined</span>
-                        : Object.entries(detailGroup.filters || {}).map(([key, val]) => {
-                            if (typeof val === 'object') {
-                                return (
-                                    <div key={key} className="sg-review-ds" style={{ marginBottom: '0.75rem' }}>
-                                        <span className="sg-review-ds-name">📂 {key}</span>
-                                        <div style={{ marginTop: '0.4rem', display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                                            {Object.entries(val).map(([col, v]) => (
-                                                <span key={col} className="sg-filter-tag">{col} = "{v}"</span>
-                                            ))}
-                                        </div>
-                                    </div>
-                                );
-                            }
-                            return <span key={key} className="sg-filter-tag">{key} = "{val}"</span>;
-                        })
+                        : Object.entries(detailGroup.filters || {}).map(([ds, dsFilters]) => (
+                            <div key={ds} className="sg-review-ds" style={{ marginBottom: '0.75rem' }}>
+                                <span className="sg-review-ds-name">📂 {ds}</span>
+                                <div style={{ marginTop: '0.4rem', display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                                    {typeof dsFilters === 'object'
+                                        ? Object.entries(dsFilters).map(([col, fv]) => (
+                                            <FilterTag key={col} col={col} filterVal={fv} />
+                                        ))
+                                        : <span className="sg-filter-tag">{ds} = "{dsFilters}"</span>
+                                    }
+                                </div>
+                            </div>
+                        ))
                     }
                 </div>
 
@@ -407,7 +463,7 @@ const RSG = () => {
     }
 
     // ── Wizard body ───────────────────────────────────────────────────────────
-    const renderWizardBody = () => (
+    function renderWizardBody() { return (
         <>
             {step === 1 && (
                 <div className="sg-step-pane">
@@ -443,7 +499,9 @@ const RSG = () => {
             )}
             {step === 2 && (
                 <div className="sg-step-pane">
-                    <p className="sg-step-hint">Set row-level filters per dataset. Only rows matching <strong>all</strong> values will be visible.</p>
+                    <p className="sg-step-hint">
+                        Set row-level filters per dataset. Only rows matching <strong>all</strong> active filters will be visible to group members.
+                    </p>
                     {schemaLoading ? (
                         <div className="sg-loading-msg">Loading datasets...</div>
                     ) : Object.keys(datasetSchema).length === 0 ? (
@@ -461,21 +519,34 @@ const RSG = () => {
                                         )}
                                     </div>
                                     <div className="sg-filter-grid">
-                                        {cols.map(col => (
-                                            <div key={col} className="sg-filter-row">
-                                                <span className="sg-filter-col">{col}</span>
-                                                <span className="sg-filter-eq">=</span>
-                                                <input
-                                                    className="sg-filter-input"
-                                                    placeholder="Any value"
-                                                    value={(form.filters[dsName] || {})[col] || ''}
-                                                    onChange={e => setFilter(dsName, col, e.target.value)}
-                                                />
-                                                {(form.filters[dsName] || {})[col] && (
-                                                    <button type="button" className="sg-filter-clear" onClick={() => clearFilter(dsName, col)}>✕</button>
-                                                )}
-                                            </div>
-                                        ))}
+                                        {cols.map(col => {
+                                            const colFilter = (form.filters[dsName] || {})[col];
+                                            const currentOp = colFilter?.op || '=';
+                                            const currentVal = colFilter?.value || '';
+                                            return (
+                                                <div key={col} className="sg-filter-row">
+                                                    <span className="sg-filter-col">{col}</span>
+                                                    <select
+                                                        className="sg-filter-op"
+                                                        value={currentOp}
+                                                        onChange={e => setFilterOp(dsName, col, e.target.value)}
+                                                    >
+                                                        {OPERATORS.map(op => (
+                                                            <option key={op.value} value={op.value}>{op.label}</option>
+                                                        ))}
+                                                    </select>
+                                                    <input
+                                                        className="sg-filter-input"
+                                                        placeholder="Any value"
+                                                        value={currentVal}
+                                                        onChange={e => setFilterValue(dsName, col, e.target.value)}
+                                                    />
+                                                    {currentVal && (
+                                                        <button type="button" className="sg-filter-clear" onClick={() => clearFilter(dsName, col)}>✕</button>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             ))}
@@ -511,8 +582,8 @@ const RSG = () => {
                                 <div key={ds} className="sg-review-ds">
                                     <span className="sg-review-ds-name">📂 {ds}</span>
                                     <div style={{ marginTop: '0.4rem', display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                                        {Object.entries(dsFilters).map(([col, val]) => (
-                                            <span key={col} className="sg-filter-tag">{col} = "{val}"</span>
+                                        {Object.entries(dsFilters).map(([col, fv]) => (
+                                            <FilterTag key={col} col={col} filterVal={fv} />
                                         ))}
                                     </div>
                                 </div>
@@ -526,7 +597,7 @@ const RSG = () => {
                 </div>
             )}
         </>
-    );
+    ); }
 
     // ── List view ─────────────────────────────────────────────────────────────
     return (

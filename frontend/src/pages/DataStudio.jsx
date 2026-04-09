@@ -37,11 +37,15 @@ const DataStudio = () => {
     const openForm = (dbType) => {
         const config = DB_TYPES.find(d => d.type === dbType);
         setSelectedDB(config);
-        setFormData(prev => ({ 
-            ...prev, 
-            type: dbType, 
+        const isOracle = dbType === 'oracle';
+        setFormData(prev => ({
+            ...prev,
+            type: dbType,
             port: config.defaultPort,
-            host: dbType === 'oracle' ? '192.168.0.205' : 'localhost' 
+            host: isOracle ? '192.168.0.205' : 'localhost',
+            user: isOracle ? 'SYSTEM' : '',
+            service_name: isOracle ? 'xepdb1' : '',
+            password: '',
         }));
         setView('form');
     };
