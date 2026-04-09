@@ -77,6 +77,22 @@
 .ca-session-list::-webkit-scrollbar { width: 4px; }
 .ca-session-list::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
 
+.ca-session-search {
+    width: 100%;
+    margin-top: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-app);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    border-radius: var(--radius-md);
+    font-size: 0.82rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.ca-session-search:focus { border-color: var(--accent-primary); }
+.ca-session-search::placeholder { color: var(--text-secondary); }
+
 .ca-empty-sessions {
     padding: 1rem 0.5rem;
     color: var(--text-secondary);
@@ -113,10 +129,57 @@
     margin-bottom: 0.2rem;
 }
 
+.ca-session-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
 .ca-session-date {
     font-size: 0.73rem;
     color: var(--text-secondary);
 }
+
+.ca-session-del {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+    opacity: 0;
+    transition: opacity 0.15s, color 0.15s, background 0.15s;
+    flex-shrink: 0;
+}
+
+.ca-session-item:hover .ca-session-del { opacity: 1; }
+.ca-session-del:hover { color: var(--accent-danger); background: rgba(239,68,68,0.1); }
+
+/* Copy button on bot messages */
+.bubble-actions {
+    display: flex;
+    gap: 0.4rem;
+    margin-top: 4px;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.message-wrapper.bot:hover .bubble-actions { opacity: 1; }
+
+.bubble-copy-btn {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+    cursor: pointer;
+    padding: 2px 8px;
+    border-radius: 4px;
+    transition: all 0.15s;
+}
+
+.bubble-copy-btn:hover { background: var(--bg-panel-hover); color: var(--accent-primary); border-color: var(--accent-primary); }
 
 /* ── TOGGLE BUTTON ───────────────────────────────────────────────────────────── */
 .ca-toggle {
@@ -204,8 +267,8 @@
 }
 
 .chat-bubble.bot {
-    background: #1e2433;
-    color: #e5e7eb;
+    background: var(--bg-panel);
+    color: var(--text-primary);
     border: 1px solid var(--border-color);
     border-bottom-left-radius: 4px;
 }
@@ -366,6 +429,10 @@
     margin-bottom: 1.5rem;
     padding-bottom: 1rem;
     border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
 }
 
 .ca-canvas-header h2 {
@@ -374,6 +441,30 @@
     font-weight: 700;
     color: var(--text-primary);
 }
+
+.ca-download-btn {
+    background: var(--accent-primary);
+    color: #fff;
+    border: none;
+    padding: 0.45rem 0.9rem;
+    border-radius: var(--radius-md);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: background 0.2s, transform 0.15s;
+}
+
+.ca-download-btn:hover {
+    background: var(--accent-primary-hover);
+    transform: translateY(-1px);
+}
+
+.ca-download-btn:active { transform: translateY(0); }
 
 .ca-canvas-empty {
     display: flex;
@@ -408,7 +499,7 @@
 .analytics-summary {
     font-size: 1rem;
     line-height: 1.65;
-    color: #f3f4f6;
+    color: var(--text-primary);
 }
 
 /* ── Data table ───────────────────────────────────────────────────────────────── */
@@ -419,22 +510,26 @@
 }
 
 .chat-table th {
-    background: rgba(255,255,255,0.05);
+    background: var(--bg-panel-hover);
     padding: 0.75rem 1rem;
     text-align: left;
-    color: #9ca3af;
+    color: var(--text-secondary);
     font-weight: 600;
-    border-bottom: 2px solid rgba(255,255,255,0.1);
+    border-bottom: 2px solid var(--border-color);
     white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 1;
 }
 
 .chat-table td {
     padding: 0.7rem 1rem;
-    border-bottom: 1px solid rgba(255,255,255,0.07);
-    color: #e5e7eb;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary);
+    white-space: nowrap;
 }
 
-.chat-table tr:hover td { background: rgba(255,255,255,0.025); }
+.chat-table tr:hover td { background: var(--bg-panel-hover); }
 
 /* ── Responsive ───────────────────────────────────────────────────────────────── */
 @media (max-width: 960px) {

@@ -1,5 +1,41 @@
 from security.models import ColumnSecurityGroup, RowSecurityGroup
 
+# Datasets that are partitioned by REGION — geography filter applies here
+REGION_FILTERED_DATASETS = {
+    'Revenue':      'REGION',
+    'Orders':       'REGION',
+    'Customers':    'REGION',
+    'Demographics': 'REGION',
+    'Geography':    'REGION',
+}
+
+
+def apply_geography_filter(user, dataset_name, data):
+    """
+    Restricts dataset rows to those matching the user's assigned geographies.
+    Only applies to datasets that have a REGION column.
+    - If the dataset has no REGION column → return all rows (not region-partitioned).
+    - If the user has no geographies assigned → return all rows (no restriction applied).
+    - Admin users are skipped by the caller before this is invoked.
+    """
+    if not data:
+        return data
+
+    region_col = REGION_FILTERED_DATASETS.get(dataset_name)
+    if not region_col:
+        return data  # Dataset is not region-partitioned
+
+    try:
+        user_geos = set(user.profile.geographies.values_list('name', flat=True))
+    except Exception:
+        return data  # No profile — no restriction
+
+    if not user_geos:
+        return data  # No geographies assigned to this user — no restriction
+
+    return [row for row in data if row.get(region_col, '') in user_geos]
+
+
 def apply_row_filter(user, table, data):
     """
     Applies Row Security Group (RSG) filters to analytical data.

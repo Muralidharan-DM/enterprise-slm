@@ -9,14 +9,62 @@ import {
 
 const COLORS = ['#6366f1', '#a78bfa', '#38bdf8', '#34d399', '#fbbf24', '#f472b6', '#f87171'];
 
+// All 25 suggestions (shown to admin); 8 shown to regular users
+const ALL_SUGGESTIONS = [
+    { label: '📈 Revenue trend',        query: 'show revenue by period' },
+    { label: '💵 Revenue by region',    query: 'total revenue by region' },
+    { label: '🎯 Revenue vs target',    query: 'revenue vs target performance' },
+    { label: '🛒 Order status',         query: 'show order status distribution' },
+    { label: '📬 Orders by customer',   query: 'top customers by order value' },
+    { label: '📦 Recent orders',        query: 'show recent orders' },
+    { label: '👥 Customer value',       query: 'top customer lifetime value' },
+    { label: '🧩 Customer segments',    query: 'customer segment breakdown' },
+    { label: '📦 Product catalog',      query: 'show product catalog' },
+    { label: '💲 Product prices',       query: 'product price list' },
+    { label: '🏷️ Inventory stock',     query: 'show inventory by category' },
+    { label: '🗂️ Categories',          query: 'product categories breakdown' },
+    { label: '📊 Category count',       query: 'products per category' },
+    { label: '👤 Demographics',         query: 'employee demographics by age group' },
+    { label: '⚥ Gender split',         query: 'headcount by gender' },
+    { label: '🌍 Office locations',     query: 'office locations by region' },
+    { label: '🗺️ Territory map',       query: 'distribution by territory' },
+    { label: '💸 Cost analysis',        query: 'cost analysis by category' },
+    { label: '📉 Budget vs actual',     query: 'budget vs actual spending' },
+    { label: '💰 Profit margins',       query: 'profit margin by business unit' },
+    { label: '📈 Profitability trend',  query: 'profitability analysis by period' },
+    { label: '📡 Business trends',      query: 'show business trends' },
+    { label: '📊 Performance index',    query: 'performance metrics index' },
+    { label: '🔮 Revenue forecast',     query: 'show revenue forecast' },
+    { label: '🎯 Forecast confidence',  query: 'forecast confidence by metric' },
+];
+
+const USER_SUGGESTIONS = [
+    { label: '📈 Revenue trend',        query: 'show revenue by period' },
+    { label: '🛒 Order status',         query: 'show order status distribution' },
+    { label: '👥 Customer value',       query: 'top customer lifetime value' },
+    { label: '💰 Profit margins',       query: 'profit margin by business unit' },
+    { label: '📦 Product catalog',      query: 'show product catalog' },
+    { label: '💸 Cost analysis',        query: 'cost analysis by category' },
+    { label: '🔮 Forecasting',          query: 'show revenue forecast' },
+    { label: '📊 Business trends',      query: 'show business trends' },
+];
+
 // ── Chat Bubble ────────────────────────────────────────────────────────────────
 const ChatBubble = ({ msg }) => {
     const isUser = msg.role === 'user';
     const isAccessDenied = !isUser && msg.data?.access_denied;
+    const [copied, setCopied] = useState(false);
     const text = isUser
         ? msg.text
         : (msg.data?.summary || msg.text || 'Analysis complete.');
     const timestamp = msg.timestamp || '';
+
+    const copyText = () => {
+        navigator.clipboard.writeText(text).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        });
+    };
 
     return (
         <div className={`message-wrapper ${isUser ? 'user' : 'bot'}`}>
@@ -25,6 +73,13 @@ const ChatBubble = ({ msg }) => {
                 {text}
             </div>
             {timestamp && <div className="bubble-ts">{timestamp}</div>}
+            {!isUser && (
+                <div className="bubble-actions">
+                    <button className="bubble-copy-btn" onClick={copyText}>
+                        {copied ? '✓ Copied' : '📋 Copy'}
+                    </button>
+                </div>
+            )}
         </div>
     );
 };
@@ -34,6 +89,15 @@ const ChartBlock = ({ chart }) => {
     const { type, title, x, y, labels, values, color } = chart;
     const barLineData = (x || []).map((v, i) => ({ name: v, val: (y || [])[i] }));
     const pieData = (labels || []).map((l, i) => ({ name: l, value: (values || [])[i] }));
+
+    // Read computed CSS vars so charts adapt to light/dark mode
+    const style = getComputedStyle(document.body);
+    const gridColor = style.getPropertyValue('--border-color').trim() || '#334155';
+    const axisColor = style.getPropertyValue('--text-secondary').trim() || '#9ca3af';
+    const tooltipBg = style.getPropertyValue('--bg-panel').trim() || '#111827';
+    const tooltipBorder = style.getPropertyValue('--border-color').trim() || '#1f2937';
+
+    const tooltipStyle = { background: tooltipBg, border: `1px solid ${tooltipBorder}`, borderRadius: 8 };
 
     return (
         <div className="card chart-card">
@@ -46,24 +110,24 @@ const ChartBlock = ({ chart }) => {
                                 label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
                                 {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                             </Pie>
-                            <Tooltip contentStyle={{ background: 'var(--bg-panel)', border: '1px solid var(--border-color)', borderRadius: 8 }} />
+                            <Tooltip contentStyle={tooltipStyle} />
                             <Legend />
                         </PieChart>
                     ) : type === 'line' ? (
                         <LineChart data={barLineData} margin={{ top: 10, right: 20, left: 0, bottom: 5 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                            <XAxis dataKey="name" stroke="#9ca3af" fontSize={11} />
-                            <YAxis stroke="#9ca3af" fontSize={11} />
-                            <Tooltip contentStyle={{ background: 'var(--bg-panel)', border: '1px solid var(--border-color)', borderRadius: 8 }} />
+                            <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+                            <XAxis dataKey="name" stroke={axisColor} fontSize={11} />
+                            <YAxis stroke={axisColor} fontSize={11} />
+                            <Tooltip contentStyle={tooltipStyle} />
                             <Legend />
                             <Line type="monotone" dataKey="val" stroke={color || COLORS[0]} strokeWidth={2} dot={{ r: 3 }} name="Value" />
                         </LineChart>
                     ) : (
                         <BarChart data={barLineData} margin={{ top: 10, right: 20, left: 0, bottom: 5 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                            <XAxis dataKey="name" stroke="#9ca3af" fontSize={11} />
-                            <YAxis stroke="#9ca3af" fontSize={11} />
-                            <Tooltip contentStyle={{ background: 'var(--bg-panel)', border: '1px solid var(--border-color)', borderRadius: 8 }} />
+                            <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+                            <XAxis dataKey="name" stroke={axisColor} fontSize={11} />
+                            <YAxis stroke={axisColor} fontSize={11} />
+                            <Tooltip contentStyle={tooltipStyle} />
                             <Legend />
                             <Bar dataKey="val" fill={color || COLORS[0]} radius={[4, 4, 0, 0]} name="Value" />
                         </BarChart>
@@ -76,7 +140,14 @@ const ChartBlock = ({ chart }) => {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 const ChatAnalytics = () => {
+    const userRaw = localStorage.getItem('user');
+    const currentUser = userRaw ? JSON.parse(userRaw) : null;
+    const isAdmin = currentUser?.role === 'admin';
+
+    const suggestions = isAdmin ? ALL_SUGGESTIONS : USER_SUGGESTIONS;
+
     const [sessions, setSessions] = useState([]);
+    const [sessionSearch, setSessionSearch] = useState('');
     const [activeSessionId, setActiveSessionId] = useState(null);
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState('');
@@ -84,14 +155,13 @@ const ChatAnalytics = () => {
     const [isTyping, setIsTyping] = useState(false);
     const [analyticsPayload, setAnalyticsPayload] = useState(null);
     const [showRecent, setShowRecent] = useState(true);
-    // Canvas width in px (right panel); chat takes remaining space
     const [canvasWidth, setCanvasWidth] = useState(420);
 
     const bottomRef = useRef(null);
     const containerRef = useRef(null);
     const isDragging = useRef(false);
 
-    // ── Drag-to-resize (canvas width, fixed px) ──────────────────────────────
+    // ── Drag-to-resize ───────────────────────────────────────────────────────
     const onResizerMouseDown = useCallback((e) => {
         e.preventDefault();
         isDragging.current = true;
@@ -101,7 +171,6 @@ const ChatAnalytics = () => {
         const onMove = (ev) => {
             if (!isDragging.current || !containerRef.current) return;
             const rect = containerRef.current.getBoundingClientRect();
-            // canvas starts from right; distance from mouse to right edge
             const newCanvas = rect.right - ev.clientX;
             if (newCanvas >= 280 && newCanvas <= rect.width * 0.65) {
                 setCanvasWidth(Math.round(newCanvas));
@@ -118,10 +187,8 @@ const ChatAnalytics = () => {
         document.addEventListener('mouseup', onUp);
     }, []);
 
-    // cleanup on unmount
     useEffect(() => () => { document.body.style.cursor = ''; document.body.style.userSelect = ''; }, []);
 
-    // ── Auto-scroll ───────────────────────────────────────────────────────────
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, isTyping]);
@@ -169,6 +236,74 @@ const ChatAnalytics = () => {
         finally { setLoading(false); }
     };
 
+    // ── Download analytics results as CSV ────────────────────────────────────
+    const downloadResults = () => {
+        if (!analyticsPayload) return;
+
+        const lines = [];
+        const now = new Date().toLocaleString();
+
+        // ── Report header ──
+        lines.push('# Analytics Report');
+        lines.push(`# Generated: ${now}`);
+        lines.push(`# Summary: ${analyticsPayload.summary}`);
+
+        // ── Chart data sections ──
+        (analyticsPayload.charts || []).forEach((chart, idx) => {
+            lines.push('');
+            lines.push(`# Chart ${idx + 1}: ${chart.title} (${chart.type})`);
+            if (chart.type === 'pie') {
+                lines.push('Label,Value');
+                (chart.labels || []).forEach((label, i) =>
+                    lines.push(`${JSON.stringify(String(label))},${chart.values?.[i] ?? ''}`)
+                );
+            } else {
+                lines.push('Category,Value');
+                (chart.x || []).forEach((xVal, i) =>
+                    lines.push(`${JSON.stringify(String(xVal))},${chart.y?.[i] ?? ''}`)
+                );
+            }
+        });
+
+        // ── Data table ──
+        if (analyticsPayload.table && analyticsPayload.table.length > 0) {
+            lines.push('');
+            lines.push(`# Data Records (${analyticsPayload.table.length} rows)`);
+            const cols = Object.keys(analyticsPayload.table[0]);
+            lines.push(cols.join(','));
+            analyticsPayload.table.forEach(row =>
+                lines.push(cols.map(col => JSON.stringify(row[col] ?? '')).join(','))
+            );
+        }
+
+        const csv = lines.join('\n');
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const filename = `analytics-${new Date().toISOString().slice(0, 10)}.csv`;
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        toast.success(`Downloaded ${filename}`);
+    };
+
+    const deleteSession = async (e, sessionId) => {
+        e.stopPropagation();
+        try {
+            await API.delete(`chat/session/${sessionId}/delete/`);
+            setSessions(prev => prev.filter(s => s.id !== sessionId));
+            if (activeSessionId === sessionId) {
+                setActiveSessionId(null);
+                setMessages([]);
+                setAnalyticsPayload(null);
+            }
+            toast.success('Chat deleted');
+        } catch { toast.error('Could not delete chat'); }
+    };
+
     // ── Send Message ─────────────────────────────────────────────────────────
     const sendMessage = async (text) => {
         if (!text.trim() || loading) return;
@@ -209,16 +344,9 @@ const ChatAnalytics = () => {
 
     const handleSubmit = (e) => { e?.preventDefault(); sendMessage(input); };
 
-    const suggestions = [
-        { label: '📈 Revenue trend',   query: 'show revenue by period' },
-        { label: '🛒 Order status',    query: 'show order status distribution' },
-        { label: '👥 Customer value',  query: 'top customer lifetime value' },
-        { label: '💰 Profit margins',  query: 'profit margin by business unit' },
-        { label: '📦 Product catalog', query: 'show product catalog' },
-        { label: '💸 Cost analysis',   query: 'cost analysis by category' },
-        { label: '🔮 Forecasting',     query: 'show revenue forecast' },
-        { label: '📊 Business trends', query: 'show business trends' },
-    ];
+    const filteredSessions = sessions.filter(s =>
+        s.title.toLowerCase().includes(sessionSearch.toLowerCase())
+    );
 
     // ── Render ────────────────────────────────────────────────────────────────
     return (
@@ -231,20 +359,37 @@ const ChatAnalytics = () => {
                         <button className="new-chat-btn" onClick={startNewChat}>
                             <span>＋</span> New Chat
                         </button>
+                        <input
+                            className="ca-session-search"
+                            placeholder="🔍 Search chats..."
+                            value={sessionSearch}
+                            onChange={e => setSessionSearch(e.target.value)}
+                        />
                     </div>
                     <div className="ca-session-list">
-                        {sessions.length === 0 && (
-                            <p className="ca-empty-sessions">No history yet.</p>
+                        {filteredSessions.length === 0 && (
+                            <p className="ca-empty-sessions">
+                                {sessionSearch ? 'No matching chats.' : 'No history yet.'}
+                            </p>
                         )}
-                        {sessions.map(s => (
+                        {filteredSessions.map(s => (
                             <div
                                 key={s.id}
                                 className={`ca-session-item ${activeSessionId === s.id ? 'active' : ''}`}
                                 onClick={() => loadSession(s.id)}
                             >
                                 <div className="ca-session-title">{s.title}</div>
-                                <div className="ca-session-date">
-                                    {new Date(s.created_at).toLocaleDateString()}
+                                <div className="ca-session-meta">
+                                    <div className="ca-session-date">
+                                        {new Date(s.created_at).toLocaleDateString()}
+                                    </div>
+                                    <button
+                                        className="ca-session-del"
+                                        onClick={(e) => deleteSession(e, s.id)}
+                                        title="Delete chat"
+                                    >
+                                        🗑
+                                    </button>
                                 </div>
                             </div>
                         ))}
@@ -265,6 +410,11 @@ const ChatAnalytics = () => {
                             <div className="ca-empty-icon">🤖</div>
                             <h3>Enterprise AI Assistant</h3>
                             <p>Ask a business question or click a suggestion below.</p>
+                            {isAdmin && (
+                                <p style={{ marginTop: '0.5rem', fontSize: '0.78rem', opacity: 0.6 }}>
+                                    Admin access — all {ALL_SUGGESTIONS.length} datasets available.
+                                </p>
+                            )}
                         </div>
                     ) : (
                         messages.map((msg, i) => <ChatBubble key={i} msg={msg} />)
@@ -291,7 +441,7 @@ const ChatAnalytics = () => {
                     <form className="ca-form" onSubmit={handleSubmit}>
                         <input
                             className="ca-input"
-                            placeholder="Ask a business question..."
+                            placeholder="Ask a business question... (Enter to send)"
                             value={input}
                             onChange={e => setInput(e.target.value)}
                             disabled={loading}
@@ -312,6 +462,13 @@ const ChatAnalytics = () => {
                     <div className="ca-canvas-content">
                         <div className="ca-canvas-header">
                             <h2>Intelligence Canvas</h2>
+                            <button
+                                className="ca-download-btn"
+                                onClick={downloadResults}
+                                title="Download report as CSV"
+                            >
+                                ⬇ Download
+                            </button>
                         </div>
 
                         <div className="card">
@@ -326,7 +483,7 @@ const ChatAnalytics = () => {
                         {analyticsPayload.table && analyticsPayload.table.length > 0 && (
                             <div className="card">
                                 <h3>📋 Data Records ({analyticsPayload.table.length})</h3>
-                                <div style={{ overflowX: 'auto', maxHeight: 420 }}>
+                                <div style={{ overflowX: 'auto', maxHeight: 420, overflowY: 'auto' }}>
                                     <table className="chat-table">
                                         <thead>
                                             <tr>

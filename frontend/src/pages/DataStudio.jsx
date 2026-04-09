@@ -118,6 +118,23 @@ const DataStudio = () => {
         toast.error("Unlinked from Database Engine");
     };
 
+    const exportCSV = () => {
+        if (!tableData.length) return;
+        const header = columns.join(',');
+        const rows = tableData.map(row =>
+            columns.map(col => JSON.stringify(row[col] ?? '')).join(',')
+        );
+        const csv = [header, ...rows].join('\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${selectedTable}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.success(`Exported ${selectedTable}.csv`);
+    };
+
     // ──────────────────────────────────────────────────────────────────────────
     // SUB-COMPONENTS
     // ──────────────────────────────────────────────────────────────────────────
@@ -232,19 +249,31 @@ const DataStudio = () => {
                     {selectedTable ? (
                         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                             <div className="studio-main-header">
-                                <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>{selectedTable}</h2>
-                                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginTop: '1rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+                                    <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>{selectedTable}</h2>
+                                    {!loading && tableData.length > 0 && (
+                                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', background: 'var(--bg-app)', padding: '0.3rem 0.8rem', borderRadius: 20, border: '1px solid var(--border-color)' }}>
+                                            {tableData.length} records
+                                        </span>
+                                    )}
+                                </div>
+                                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginTop: '1rem', flexWrap: 'wrap' }}>
                                     <div className="csg-pill">
                                         🛡️ ROW/COL SECURITY ACTIVE
                                     </div>
-                                    <input 
-                                        type="text" 
-                                        className="form-input" 
-                                        placeholder="Dynamic row filter..." 
+                                    <input
+                                        type="text"
+                                        className="form-input"
+                                        placeholder="Filter rows..."
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
-                                        style={{ height: '36px', maxWidth: '300px' }}
+                                        style={{ height: '36px', maxWidth: '260px' }}
                                     />
+                                    {tableData.length > 0 && (
+                                        <button className="btn-secondary" onClick={exportCSV} style={{ height: '36px', padding: '0 1rem', fontSize: '0.85rem' }}>
+                                            ⬇️ Export CSV
+                                        </button>
+                                    )}
                                 </div>
                             </div>
 

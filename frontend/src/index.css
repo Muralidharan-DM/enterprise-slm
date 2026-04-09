@@ -218,27 +218,34 @@ a:hover {
 
 /* Shared Table Styles (Enterprise Grade) */
 .enterprise-table {
-    width: 100%;
+    min-width: 100%;
+    width: max-content;
     border-collapse: collapse;
     margin-top: 1rem;
 }
 
 .enterprise-table th {
     text-align: left;
-    padding: 1rem;
+    padding: 0.85rem 1rem;
     border-bottom: 2px solid var(--border-color);
     color: var(--text-secondary);
     font-weight: 600;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     text-transform: uppercase;
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    background: var(--bg-panel);
+    z-index: 1;
 }
 
 .enterprise-table td {
-    padding: 1rem;
+    padding: 0.85rem 1rem;
     border-bottom: 1px solid var(--border-color);
-    font-size: 0.95rem;
+    font-size: 0.9rem;
+    white-space: nowrap;
 }
 
-.enterprise-table tr:hover {
+.enterprise-table tr:hover td {
     background: var(--bg-panel-hover);
 }

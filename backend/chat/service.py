@@ -1,6 +1,6 @@
 from analytics.seed_data import DATASETS
 from chat.intents import INTENT_MAP, detect_intent
-from security.utils import filter_columns, apply_row_filter
+from security.utils import filter_columns, apply_row_filter, apply_geography_filter
 
 
 def _is_admin(user):
@@ -79,14 +79,19 @@ def process_query(query, user=None):
 
     data = list(DATASETS.get(dataset_name, []))   # work on a copy
 
-    # Apply row-level and column-level security
+    # Apply security filters for non-admin users
     if not _is_admin(user):
-        data = apply_row_filter(user, dataset_name, data)
-        data = filter_columns(user, dataset_name, data)
+        data = apply_geography_filter(user, dataset_name, data)  # region-based row filter
+        data = apply_row_filter(user, dataset_name, data)        # RSG filter
+        data = filter_columns(user, dataset_name, data)          # CSG column filter
 
     if not data:
         return {
-            "summary": f"No accessible records found in {label}. Your security policy may restrict this data.",
+            "summary": (
+                f"No records found in {label} for your assigned region(s). "
+                "Your geography access may restrict the available data, or no data exists for your region. "
+                "Contact your administrator to update your geography assignment."
+            ),
             "table": [],
             "charts": [],
         }

@@ -42,6 +42,17 @@ def get_session_messages(request, session_id):
     return Response(data)
 
 
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_session(request, session_id):
+    try:
+        session = ChatSession.objects.get(id=session_id, user=request.user)
+        session.delete()
+        return Response({"message": "Session deleted"})
+    except ChatSession.DoesNotExist:
+        return Response({"error": "Session not found"}, status=404)
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def chat_api(request):
