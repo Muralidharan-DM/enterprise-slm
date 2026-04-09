@@ -202,7 +202,9 @@ const CSG = () => {
         setAddUserOpen(true);
         try {
             const res = await API.get(`security/csg/${detailGroup.id}/available-users/`);
-            setAvailableUsers(res.data || []);
+            // Exclude users already shown as auto-matched — they're in the group via domain
+            const autoEmails = new Set(autoUsers.map(u => u.email));
+            setAvailableUsers((res.data || []).filter(u => !autoEmails.has(u.email)));
         } catch { setAvailableUsers([]); }
         finally { setAddUserLoading(false); }
     };

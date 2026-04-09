@@ -3,6 +3,40 @@ from chat.intents import INTENT_MAP, detect_intent
 from security.utils import filter_columns, apply_row_filter
 
 
+def _is_admin(user):
+    """Admins (superuser or role=admin on User OR UserProfile) have unrestricted access."""
+    if user is None:
+        return True
+    if user.is_superuser or getattr(user, 'role', '') == 'admin':
+        return True
+    try:
+        return user.profile.role == 'admin'
+    except Exception:
+        return False
+
+
+def _get_user_accessible_datasets(user):
+    """
+    Returns the set of dataset names the user can access based on their
+    domain/subdomain profile. Dataset names match SubDomain names exactly.
+    """
+    if _is_admin(user):
+        return set(INTENT_MAP[k]["dataset"] for k in INTENT_MAP)
+    try:
+        profile = user.profile
+        accessible = set()
+        # Subdomains the user is directly assigned to
+        for sub in profile.subdomains.values_list('name', flat=True):
+            accessible.add(sub)
+        # All subdomains of domains the user belongs to
+        for domain in profile.domains.prefetch_related('subdomains').all():
+            for sub in domain.subdomains.values_list('name', flat=True):
+                accessible.add(sub)
+        return accessible
+    except Exception:
+        return set()
+
+
 def process_query(query, user=None):
     """
     Routes a user query to the correct dataset, applies security filters,
@@ -11,11 +45,15 @@ def process_query(query, user=None):
     intent = detect_intent(query)
 
     if not intent:
-        available = ', '.join(INTENT_MAP[k]["label"] for k in INTENT_MAP)
+        accessible_datasets = _get_user_accessible_datasets(user)
+        available_labels = [
+            INTENT_MAP[k]["label"] for k in INTENT_MAP
+            if INTENT_MAP[k]["dataset"] in accessible_datasets
+        ]
         return {
             "summary": (
                 "I couldn't match your query to a known dataset. "
-                f"Try asking about: {available}."
+                f"Try asking about: {', '.join(available_labels) or 'your assigned datasets'}."
             ),
             "table": [],
             "charts": [],
@@ -23,16 +61,32 @@ def process_query(query, user=None):
 
     dataset_name = INTENT_MAP[intent]["dataset"]
     label = INTENT_MAP[intent]["label"]
+
+    # ── Domain / subdomain access gate ──────────────────────────────────────
+    if not _is_admin(user):
+        accessible = _get_user_accessible_datasets(user)
+        if dataset_name not in accessible:
+            return {
+                "summary": (
+                    f"Access Denied. You do not have permission to view {label} data. "
+                    "This dataset is outside your assigned domain scope. "
+                    "Please contact your administrator if you need access."
+                ),
+                "table": [],
+                "charts": [],
+                "access_denied": True,
+            }
+
     data = list(DATASETS.get(dataset_name, []))   # work on a copy
 
     # Apply row-level and column-level security
-    if user is not None and not user.is_superuser:
+    if not _is_admin(user):
         data = apply_row_filter(user, dataset_name, data)
         data = filter_columns(user, dataset_name, data)
 
     if not data:
         return {
-            "summary": f"No accessible records found in {dataset_name}. Your security policy may restrict this data.",
+            "summary": f"No accessible records found in {label}. Your security policy may restrict this data.",
             "table": [],
             "charts": [],
         }

@@ -176,7 +176,7 @@ const Layout = ({ children }) => {
                         </span>
                     </div>
                 </header>
-                <div className="layout-content">
+                <div className={`layout-content${location.pathname === '/chat' ? ' fullpage' : ''}`}>
                     {children}
                 </div>
             </main>

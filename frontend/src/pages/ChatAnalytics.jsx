@@ -12,22 +12,19 @@ const COLORS = ['#6366f1', '#a78bfa', '#38bdf8', '#34d399', '#fbbf24', '#f472b6'
 // ── Chat Bubble ────────────────────────────────────────────────────────────────
 const ChatBubble = ({ msg }) => {
     const isUser = msg.role === 'user';
+    const isAccessDenied = !isUser && msg.data?.access_denied;
     const text = isUser
         ? msg.text
         : (msg.data?.summary || msg.text || 'Analysis complete.');
     const timestamp = msg.timestamp || '';
 
     return (
-        <div
-            className={`message-wrapper ${isUser ? 'user' : 'bot'}`}
-            style={{ display: 'flex', flexDirection: 'column', alignItems: isUser ? 'flex-end' : 'flex-start' }}
-        >
-            <div className={`chat-bubble ${isUser ? 'user' : 'bot'}`}>{text}</div>
-            {timestamp && (
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: 4 }}>
-                    {timestamp}
-                </div>
-            )}
+        <div className={`message-wrapper ${isUser ? 'user' : 'bot'}`}>
+            <div className={`chat-bubble ${isUser ? 'user' : 'bot'}${isAccessDenied ? ' denied' : ''}`}>
+                {isAccessDenied && <span className="denied-icon">🚫</span>}
+                {text}
+            </div>
+            {timestamp && <div className="bubble-ts">{timestamp}</div>}
         </div>
     );
 };
@@ -35,29 +32,19 @@ const ChatBubble = ({ msg }) => {
 // ── Single Chart Component ─────────────────────────────────────────────────────
 const ChartBlock = ({ chart }) => {
     const { type, title, x, y, labels, values, color } = chart;
-
     const barLineData = (x || []).map((v, i) => ({ name: v, val: (y || [])[i] }));
     const pieData = (labels || []).map((l, i) => ({ name: l, value: (values || [])[i] }));
 
     return (
         <div className="card chart-card">
             <h3>📈 {title || 'Chart'}</h3>
-            <div style={{ width: '100%', height: 280 }}>
+            <div style={{ width: '100%', height: 260 }}>
                 <ResponsiveContainer>
                     {type === 'pie' ? (
                         <PieChart>
-                            <Pie
-                                data={pieData}
-                                dataKey="value"
-                                nameKey="name"
-                                cx="50%"
-                                cy="50%"
-                                outerRadius={90}
-                                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                            >
-                                {pieData.map((_, i) => (
-                                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                                ))}
+                            <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={85}
+                                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                                {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                             </Pie>
                             <Tooltip contentStyle={{ background: 'var(--bg-panel)', border: '1px solid var(--border-color)', borderRadius: 8 }} />
                             <Legend />
@@ -91,50 +78,50 @@ const ChartBlock = ({ chart }) => {
 const ChatAnalytics = () => {
     const [sessions, setSessions] = useState([]);
     const [activeSessionId, setActiveSessionId] = useState(null);
-
     const [messages, setMessages] = useState([]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
     const [isTyping, setIsTyping] = useState(false);
-
     const [analyticsPayload, setAnalyticsPayload] = useState(null);
     const [showRecent, setShowRecent] = useState(true);
-    const [chatWidth, setChatWidth] = useState(40);
+    // Canvas width in px (right panel); chat takes remaining space
+    const [canvasWidth, setCanvasWidth] = useState(420);
 
     const bottomRef = useRef(null);
-    const dashboardRef = useRef(null);
+    const containerRef = useRef(null);
     const isDragging = useRef(false);
 
-    // ── Drag-to-resize ──────────────────────────────────────────────────────
-    const startDragging = () => {
+    // ── Drag-to-resize (canvas width, fixed px) ──────────────────────────────
+    const onResizerMouseDown = useCallback((e) => {
+        e.preventDefault();
         isDragging.current = true;
         document.body.style.cursor = 'col-resize';
-        document.addEventListener('mousemove', handleDragging);
-        document.addEventListener('mouseup', stopDragging);
-    };
+        document.body.style.userSelect = 'none';
 
-    const handleDragging = useCallback((e) => {
-        if (!isDragging.current || !dashboardRef.current) return;
-        const rect = dashboardRef.current.getBoundingClientRect();
-        const newWidth = ((e.clientX - rect.left) / rect.width) * 100;
-        if (newWidth > 20 && newWidth < 70) setChatWidth(newWidth);
+        const onMove = (ev) => {
+            if (!isDragging.current || !containerRef.current) return;
+            const rect = containerRef.current.getBoundingClientRect();
+            // canvas starts from right; distance from mouse to right edge
+            const newCanvas = rect.right - ev.clientX;
+            if (newCanvas >= 280 && newCanvas <= rect.width * 0.65) {
+                setCanvasWidth(Math.round(newCanvas));
+            }
+        };
+        const onUp = () => {
+            isDragging.current = false;
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
     }, []);
 
-    const stopDragging = useCallback(() => {
-        isDragging.current = false;
-        document.body.style.cursor = 'default';
-        document.removeEventListener('mousemove', handleDragging);
-        document.removeEventListener('mouseup', stopDragging);
-    }, [handleDragging]);
+    // cleanup on unmount
+    useEffect(() => () => { document.body.style.cursor = ''; document.body.style.userSelect = ''; }, []);
 
-    useEffect(() => {
-        return () => {
-            document.removeEventListener('mousemove', handleDragging);
-            document.removeEventListener('mouseup', stopDragging);
-        };
-    }, [handleDragging, stopDragging]);
-
-    // ── Scroll ───────────────────────────────────────────────────────────────
+    // ── Auto-scroll ───────────────────────────────────────────────────────────
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, isTyping]);
@@ -177,7 +164,6 @@ const ChatAnalytics = () => {
             setMessages([]);
             setAnalyticsPayload(null);
             fetchSessions();
-            toast.success('New session started');
             return newId;
         } catch { toast.error('Could not create session'); return null; }
         finally { setLoading(false); }
@@ -187,7 +173,6 @@ const ChatAnalytics = () => {
     const sendMessage = async (text) => {
         if (!text.trim() || loading) return;
 
-        // Auto-create session if none exists
         let sessionId = activeSessionId;
         if (!sessionId) {
             sessionId = await startNewChat();
@@ -209,13 +194,12 @@ const ChatAnalytics = () => {
             const botData = res.data;
             const botTs = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             setMessages(prev => [...prev, { role: 'bot', data: botData, timestamp: botTs }]);
-            setAnalyticsPayload(botData);
-            fetchSessions(); // refresh sidebar titles
+            if (!botData.access_denied) setAnalyticsPayload(botData);
+            fetchSessions();
         } catch {
             setMessages(prev => prev.filter(m => m.id !== loadingId));
-            const errData = { summary: 'System error. Could not process query.', table: [], charts: [] };
+            const errData = { summary: 'System error. Could not process your query.', table: [], charts: [] };
             setMessages(prev => [...prev, { role: 'bot', data: errData }]);
-            setAnalyticsPayload(errData);
             toast.error('Query failed');
         } finally {
             setLoading(false);
@@ -223,75 +207,71 @@ const ChatAnalytics = () => {
         }
     };
 
-    const handleSubmit = (e) => {
-        e?.preventDefault();
-        sendMessage(input);
-    };
+    const handleSubmit = (e) => { e?.preventDefault(); sendMessage(input); };
 
-    // ── Suggestion chips ─────────────────────────────────────────────────────
     const suggestions = [
-        { label: '📈 Revenue trend',        query: 'show revenue by period' },
-        { label: '🛒 Order status',          query: 'show order status distribution' },
-        { label: '👥 Customer value',        query: 'top customer lifetime value' },
-        { label: '💰 Profit margins',        query: 'profit margin by business unit' },
-        { label: '📦 Product catalog',       query: 'show product catalog' },
-        { label: '💸 Cost analysis',         query: 'cost analysis by category' },
-        { label: '🔮 Forecasting',           query: 'show revenue forecast' },
-        { label: '📊 Business trends',       query: 'show business trends' },
+        { label: '📈 Revenue trend',   query: 'show revenue by period' },
+        { label: '🛒 Order status',    query: 'show order status distribution' },
+        { label: '👥 Customer value',  query: 'top customer lifetime value' },
+        { label: '💰 Profit margins',  query: 'profit margin by business unit' },
+        { label: '📦 Product catalog', query: 'show product catalog' },
+        { label: '💸 Cost analysis',   query: 'cost analysis by category' },
+        { label: '🔮 Forecasting',     query: 'show revenue forecast' },
+        { label: '📊 Business trends', query: 'show business trends' },
     ];
 
     // ── Render ────────────────────────────────────────────────────────────────
     return (
-        <div className="dashboard" ref={dashboardRef}>
+        <div className="ca-root" ref={containerRef}>
 
-            {/* LEFT: Session history */}
-            <div className="recent-chats" style={{ width: showRecent ? 260 : 0, overflow: 'hidden' }}>
-                <div className="recent-chats-inner" style={{ width: 260 }}>
-                    <div className="recent-chats-header">
-                        <button className="new-chat-btn" onClick={startNewChat}>➕ New Chat</button>
+            {/* ── LEFT: Session history ───────────────────────────────────── */}
+            <div className={`ca-sidebar ${showRecent ? 'open' : 'closed'}`}>
+                <div className="ca-sidebar-inner">
+                    <div className="ca-sidebar-header">
+                        <button className="new-chat-btn" onClick={startNewChat}>
+                            <span>＋</span> New Chat
+                        </button>
                     </div>
-                    <div className="session-list">
+                    <div className="ca-session-list">
+                        {sessions.length === 0 && (
+                            <p className="ca-empty-sessions">No history yet.</p>
+                        )}
                         {sessions.map(s => (
                             <div
                                 key={s.id}
-                                className={`session-item ${activeSessionId === s.id ? 'active' : ''}`}
+                                className={`ca-session-item ${activeSessionId === s.id ? 'active' : ''}`}
                                 onClick={() => loadSession(s.id)}
                             >
-                                <div className="session-title">{s.title}</div>
-                                <div className="session-date">{new Date(s.created_at).toLocaleDateString()}</div>
+                                <div className="ca-session-title">{s.title}</div>
+                                <div className="ca-session-date">
+                                    {new Date(s.created_at).toLocaleDateString()}
+                                </div>
                             </div>
                         ))}
-                        {sessions.length === 0 && (
-                            <p style={{ padding: '1rem', color: 'var(--text-secondary)', fontSize: '0.83rem' }}>
-                                No history yet.
-                            </p>
-                        )}
                     </div>
                 </div>
             </div>
 
-            {/* TOGGLE */}
-            <div className="toggle-wrapper">
-                <button className="recent-toggle-btn" onClick={() => setShowRecent(v => !v)}>
-                    {showRecent ? '◀' : '▶'}
-                </button>
-            </div>
+            {/* ── TOGGLE ──────────────────────────────────────────────────── */}
+            <button className="ca-toggle" onClick={() => setShowRecent(v => !v)} title={showRecent ? 'Hide history' : 'Show history'}>
+                {showRecent ? '◀' : '▶'}
+            </button>
 
-            {/* CENTER: Chat */}
-            <div className="chat-window" style={{ flex: `0 0 ${chatWidth}%`, minWidth: 300 }}>
-                <div className="chat-messages">
+            {/* ── CENTER: Chat ─────────────────────────────────────────────── */}
+            <div className="ca-chat">
+                <div className="ca-messages">
                     {messages.length === 0 ? (
-                        <div style={{ margin: 'auto', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                            <div style={{ fontSize: '3rem', marginBottom: '0.75rem' }}>🤖</div>
-                            <h3 style={{ margin: '0 0 0.5rem', color: 'var(--text-primary)' }}>Enterprise AI Assistant</h3>
-                            <p style={{ margin: 0 }}>Ask a business question or click a suggestion below.</p>
+                        <div className="ca-empty-chat">
+                            <div className="ca-empty-icon">🤖</div>
+                            <h3>Enterprise AI Assistant</h3>
+                            <p>Ask a business question or click a suggestion below.</p>
                         </div>
                     ) : (
                         messages.map((msg, i) => <ChatBubble key={i} msg={msg} />)
                     )}
 
                     {isTyping && (
-                        <div className="message-wrapper bot" style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                        <div className="message-wrapper bot">
                             <div className="chat-bubble bot typing">
                                 <span className="dot" /><span className="dot" /><span className="dot" />
                             </div>
@@ -300,61 +280,53 @@ const ChatAnalytics = () => {
                     <div ref={bottomRef} />
                 </div>
 
-                <div className="chat-input-container">
-                    <div className="chat-suggestions">
+                <div className="ca-input-area">
+                    <div className="ca-chips">
                         {suggestions.map((s, i) => (
-                            <div
-                                key={i}
-                                className="suggestion-chip"
-                                onClick={() => sendMessage(s.query)}
-                            >
+                            <button key={i} className="ca-chip" onClick={() => sendMessage(s.query)} disabled={loading}>
                                 {s.label}
-                            </div>
+                            </button>
                         ))}
                     </div>
-                    <form className="chat-input-form" onSubmit={handleSubmit}>
+                    <form className="ca-form" onSubmit={handleSubmit}>
                         <input
-                            type="text"
-                            className="chat-input"
+                            className="ca-input"
                             placeholder="Ask a business question..."
                             value={input}
                             onChange={e => setInput(e.target.value)}
                             disabled={loading}
                         />
-                        <button type="submit" className="send-btn" disabled={loading || !input.trim()}>
+                        <button type="submit" className="ca-send" disabled={loading || !input.trim()}>
                             ➤
                         </button>
                     </form>
                 </div>
             </div>
 
-            {/* RESIZER */}
-            <div className="resizer" onMouseDown={startDragging} />
+            {/* ── RESIZER ──────────────────────────────────────────────────── */}
+            <div className="ca-resizer" onMouseDown={onResizerMouseDown} />
 
-            {/* RIGHT: Analytics Canvas */}
-            <div className="analytics-canvas" style={{ flex: 1, minWidth: 0 }}>
+            {/* ── RIGHT: Analytics Canvas ──────────────────────────────────── */}
+            <div className="ca-canvas" style={{ width: canvasWidth, flexShrink: 0 }}>
                 {analyticsPayload ? (
-                    <div className="canvas-content" style={{ padding: '0 0 2rem' }}>
-                        <div className="canvas-header">
+                    <div className="ca-canvas-content">
+                        <div className="ca-canvas-header">
                             <h2>Intelligence Canvas</h2>
                         </div>
 
-                        {/* Summary */}
                         <div className="card">
                             <h3>🤖 Executive Summary</h3>
                             <div className="analytics-summary">{analyticsPayload.summary}</div>
                         </div>
 
-                        {/* Charts */}
                         {(analyticsPayload.charts || []).map((chart, i) => (
                             <ChartBlock key={i} chart={chart} />
                         ))}
 
-                        {/* Data Table */}
                         {analyticsPayload.table && analyticsPayload.table.length > 0 && (
                             <div className="card">
                                 <h3>📋 Data Records ({analyticsPayload.table.length})</h3>
-                                <div style={{ overflowX: 'auto', maxHeight: 480 }}>
+                                <div style={{ overflowX: 'auto', maxHeight: 420 }}>
                                     <table className="chat-table">
                                         <thead>
                                             <tr>
@@ -378,7 +350,7 @@ const ChatAnalytics = () => {
                         )}
                     </div>
                 ) : (
-                    <div className="empty-canvas">
+                    <div className="ca-canvas-empty">
                         <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📊</div>
                         <h2>Analytics Canvas</h2>
                         <p>Charts, summaries, and data tables will appear here after you ask a question.</p>

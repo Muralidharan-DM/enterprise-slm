@@ -1,7 +1,8 @@
 /* Data Studio Premium Styling */
 
 .data-studio-container {
-    height: 100vh;
+    height: 100%;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     background-color: var(--bg-app);
@@ -152,6 +153,28 @@
     flex: 1;
 }
 
+/* btn-group utility */
+.btn-group {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+/* csg-pill badge */
+.csg-pill {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    padding: 0.3rem 0.75rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
 /* Dashboard View (Updated) */
 .studio-topbar {
     height: 64px;
@@ -228,10 +251,11 @@
     overflow: hidden;
 }
 
-.main-header {
+.studio-main-header {
     padding: 1.5rem 2rem;
     border-bottom: 1px solid var(--border-color);
     background: var(--bg-panel);
+    flex-shrink: 0;
 }
 
 .table-container {

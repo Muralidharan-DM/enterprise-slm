@@ -176,6 +176,22 @@ a:hover {
     transform: translateY(-1px);
 }
 
+.btn-secondary {
+    background: transparent;
+    color: var(--text-primary);
+    padding: 0.6rem 1.2rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+    background: var(--bg-panel-hover);
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+}
+
 .btn-danger {
     background: var(--accent-danger);
     color: #fff;

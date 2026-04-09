@@ -342,4 +342,12 @@
     flex: 1;
     overflow-y: auto;
     position: relative;
+    min-height: 0;
+}
+
+/* Full-height pages (e.g. Chat) opt-in via this class */
+.layout-content.fullpage {
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }

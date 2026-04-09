@@ -1,452 +1,449 @@
-.dashboard {
+/* ── Root container ──────────────────────────────────────────────────────────── */
+.ca-root {
     display: flex;
-    height: calc(100vh - 0px); /* Fill whatever Layout leaves */
+    flex: 1;
+    min-height: 0;
+    height: 100%;
     background: var(--bg-app);
     font-family: 'Inter', sans-serif;
     color: var(--text-primary);
+    overflow: hidden;
+    position: relative;
 }
 
-/* LEFT PANEL: RECENT CHATS */
-.recent-chats {
+/* ── LEFT SIDEBAR ────────────────────────────────────────────────────────────── */
+.ca-sidebar {
+    width: 260px;
+    flex-shrink: 0;
     background: var(--bg-panel);
     border-right: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
-    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    white-space: nowrap;
     overflow: hidden;
-    flex-shrink: 0;
+    transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.28s ease,
+                border-color 0.28s ease;
 }
 
-.recent-chats-inner {
+.ca-sidebar.closed {
+    width: 0;
+    border-color: transparent;
+    opacity: 0;
+}
+
+.ca-sidebar-inner {
+    width: 260px; /* fixed so content doesn't compress during animation */
     display: flex;
     flex-direction: column;
     height: 100%;
+    overflow: hidden;
 }
 
-.recent-chats-header {
-    padding: 1.5rem;
+.ca-sidebar-header {
+    padding: 1.25rem;
     border-bottom: 1px solid var(--border-color);
-    position: sticky;
-    top: 0;
-    background: var(--bg-panel);
-    z-index: 10;
+    flex-shrink: 0;
 }
 
 .new-chat-btn {
     width: 100%;
-    padding: 0.85rem;
+    padding: 0.8rem 1rem;
     background: var(--accent-primary);
     color: white;
     border: none;
     border-radius: var(--radius-md);
     font-weight: 600;
+    font-size: 0.9rem;
     cursor: pointer;
-    transition: all 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
+    transition: background 0.2s, transform 0.15s;
 }
 
-.new-chat-btn:hover {
-    background: var(--accent-primary-hover);
-    transform: scale(1.02);
-}
+.new-chat-btn:hover { background: var(--accent-primary-hover); transform: scale(1.02); }
+.new-chat-btn:active { transform: scale(0.98); }
 
-.session-list {
+.ca-session-list {
     flex: 1;
-    padding: 1rem;
+    overflow-y: auto;
+    padding: 0.75rem;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.4rem;
 }
 
-.session-item {
-    padding: 1rem;
+.ca-session-list::-webkit-scrollbar { width: 4px; }
+.ca-session-list::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+
+.ca-empty-sessions {
+    padding: 1rem 0.5rem;
+    color: var(--text-secondary);
+    font-size: 0.83rem;
+    text-align: center;
+}
+
+.ca-session-item {
+    padding: 0.85rem 1rem;
     border-radius: var(--radius-md);
-    background: var(--bg-app);
+    background: transparent;
     border: 1px solid transparent;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.18s ease;
 }
 
-.session-item:hover {
+.ca-session-item:hover {
     background: var(--bg-panel-hover);
     border-color: var(--border-color);
 }
 
-.session-item.active {
-    background: rgba(167, 139, 250, 0.1);
-    border-color: rgba(167, 139, 250, 0.3);
-    border-left: 4px solid var(--accent-primary);
+.ca-session-item.active {
+    background: rgba(99, 102, 241, 0.12);
+    border-color: rgba(99, 102, 241, 0.35);
+    border-left: 3px solid var(--accent-primary);
 }
 
-.session-title {
-    font-size: 0.9rem;
+.ca-session-title {
+    font-size: 0.88rem;
     font-weight: 600;
-    margin-bottom: 0.25rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    margin-bottom: 0.2rem;
 }
 
-.session-date {
-    font-size: 0.75rem;
+.ca-session-date {
+    font-size: 0.73rem;
     color: var(--text-secondary);
 }
 
-/* CENTER PANEL: CHAT WINDOW */
-.chat-window {
-    display: flex;
-    flex-direction: column;
-    background: var(--bg-app);
+/* ── TOGGLE BUTTON ───────────────────────────────────────────────────────────── */
+.ca-toggle {
+    width: 20px;
+    flex-shrink: 0;
+    background: var(--bg-panel);
+    border: none;
     border-right: 1px solid var(--border-color);
-    position: relative;
-    z-index: 5;
-    overflow: hidden; /* Prevent content sticking out Step 11.2 */
+    color: var(--text-secondary);
+    font-size: 0.65rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s, color 0.2s;
+    padding: 0;
 }
 
-.chat-messages {
+.ca-toggle:hover {
+    background: var(--bg-panel-hover);
+    color: var(--accent-primary);
+}
+
+/* ── CENTER: CHAT WINDOW ─────────────────────────────────────────────────────── */
+.ca-chat {
     flex: 1;
-    overflow-y: auto;
+    min-width: 320px;
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    overflow: hidden;
+    background: var(--bg-app);
+}
+
+.ca-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem 1.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    scroll-behavior: smooth;
+}
+
+.ca-messages::-webkit-scrollbar { width: 5px; }
+.ca-messages::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+
+/* ── Empty state ── */
+.ca-empty-chat {
+    margin: auto;
+    text-align: center;
+    color: var(--text-secondary);
+    max-width: 360px;
     padding: 2rem;
 }
 
-.chat-messages::-webkit-scrollbar {
-    display: none;
+.ca-empty-icon { font-size: 3.5rem; margin-bottom: 1rem; }
+.ca-empty-chat h3 { margin: 0 0 0.5rem; color: var(--text-primary); font-size: 1.2rem; }
+.ca-empty-chat p  { margin: 0; font-size: 0.9rem; line-height: 1.5; }
+
+/* ── Message bubbles ── */
+.message-wrapper {
+    display: flex;
+    flex-direction: column;
 }
+
+.message-wrapper.user { align-items: flex-end; }
+.message-wrapper.bot  { align-items: flex-start; }
 
 .chat-bubble {
-    max-width: 85%;
-    padding: 1rem 1.25rem;
-    border-radius: var(--radius-lg);
-    line-height: 1.5;
-    font-size: 0.95rem;
+    max-width: 80%;
+    padding: 0.9rem 1.15rem;
+    border-radius: 16px;
+    line-height: 1.55;
+    font-size: 0.92rem;
     position: relative;
-    box-shadow: var(--shadow-sm);
-    transition: all 0.2s ease;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
+.chat-bubble:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+
 .chat-bubble.user {
-    align-self: flex-end;
     background: var(--accent-primary);
     color: white;
-    border-bottom-right-radius: 0;
+    border-bottom-right-radius: 4px;
 }
 
 .chat-bubble.bot {
-    align-self: flex-start;
-    background: #1f2937; /* As specified in STEP 8.4 */
-    color: white;
+    background: #1e2433;
+    color: #e5e7eb;
     border: 1px solid var(--border-color);
-    border-bottom-left-radius: 0;
+    border-bottom-left-radius: 4px;
 }
 
-/* Typing Indicator Animation (STEP 9.16) */
+.chat-bubble.denied {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.3);
+    color: #fca5a5;
+}
+
+.denied-icon { margin-right: 6px; }
+
+.bubble-ts {
+    font-size: 0.68rem;
+    color: var(--text-secondary);
+    margin-top: 4px;
+    padding: 0 4px;
+}
+
+/* ── Typing indicator ── */
 .chat-bubble.typing {
     display: flex;
-    gap: 4px;
-    padding: 12px 16px;
+    align-items: center;
+    gap: 5px;
+    padding: 14px 18px;
 }
 
-.chat-bubble.typing .dot {
-    width: 6px;
-    height: 6px;
+.dot {
+    width: 7px;
+    height: 7px;
     background: #9ca3af;
     border-radius: 50%;
-    animation: typing 1.4s infinite ease-in-out;
+    animation: ca-typing 1.4s infinite ease-in-out;
 }
 
-.chat-bubble.typing .dot:nth-child(2) { animation-delay: 0.2s; }
-.chat-bubble.typing .dot:nth-child(3) { animation-delay: 0.4s; }
+.dot:nth-child(2) { animation-delay: 0.2s; }
+.dot:nth-child(3) { animation-delay: 0.4s; }
 
-@keyframes typing {
-    0%, 80%, 100% { transform: scale(0); opacity: 0.3; }
+@keyframes ca-typing {
+    0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
     40% { transform: scale(1); opacity: 1; }
 }
 
-.chat-bubble:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-}
-
-.chat-input-container {
-    padding: 1.5rem 2rem;
+/* ── Input area ── */
+.ca-input-area {
+    padding: 1rem 1.5rem 1.25rem;
     background: var(--bg-app);
     border-top: 1px solid var(--border-color);
-    overflow-x: hidden; /* Fix sticking out buttons Step 11.2 */
+    flex-shrink: 0;
 }
 
-.chat-suggestions {
+.ca-chips {
     display: flex;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
+    gap: 0.45rem;
+    margin-bottom: 0.85rem;
     overflow-x: auto;
-    padding-bottom: 0.5rem;
+    padding-bottom: 0.25rem;
 }
 
-.chat-suggestions::-webkit-scrollbar {
-    display: none;
-}
+.ca-chips::-webkit-scrollbar { display: none; }
 
-.suggestion-chip {
-    padding: 0.5rem 1rem;
+.ca-chip {
+    padding: 0.42rem 0.9rem;
     background: var(--bg-panel);
     border: 1px solid var(--border-color);
     color: var(--text-secondary);
     border-radius: 20px;
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     cursor: pointer;
     white-space: nowrap;
-    transition: all 0.2s;
+    transition: all 0.18s;
+    flex-shrink: 0;
 }
 
-.suggestion-chip:hover {
-    background: rgba(167, 139, 250, 0.1);
+.ca-chip:hover:not(:disabled) {
+    background: rgba(99, 102, 241, 0.12);
     color: var(--accent-primary);
-    border-color: rgba(167, 139, 250, 0.3);
+    border-color: rgba(99, 102, 241, 0.35);
 }
 
-.chat-input-form {
+.ca-chip:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.ca-form {
     display: flex;
-    gap: 1rem;
+    gap: 0.75rem;
     align-items: center;
 }
 
-.chat-input {
+.ca-input {
     flex: 1;
+    min-width: 0;
     background: var(--bg-panel);
-    border: 1px solid var(--border-color);
+    border: 1.5px solid var(--border-color);
     color: var(--text-primary);
     border-radius: 24px;
-    padding: 1rem 1.5rem;
-    font-size: 1rem;
-    transition: all 0.2s;
-    min-width: 0; /* Allow it to shrink without sticking out Step 11.2 */
+    padding: 0.85rem 1.4rem;
+    font-size: 0.95rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.chat-input:focus {
+.ca-input:focus {
     outline: none;
     border-color: var(--accent-primary);
-    box-shadow: 0 0 0 2px rgba(167, 139, 250, 0.2);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
 }
 
-button {
-    transition: all 0.2s ease;
-}
+.ca-input::placeholder { color: var(--text-secondary); }
 
-button:hover {
-    transform: scale(1.05); /* Global button scale effect per STEP 8.12 */
-}
-
-.send-btn {
+.ca-send {
     background: var(--accent-primary);
     color: white;
     border: none;
-    width: 48px;
-    height: 48px;
+    width: 46px;
+    height: 46px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    font-size: 1.25rem;
+    font-size: 1.1rem;
     flex-shrink: 0;
+    transition: background 0.2s, transform 0.15s;
 }
 
-.send-btn:disabled {
-    background: var(--bg-panel-hover);
-    color: var(--text-secondary);
-    cursor: not-allowed;
-    transform: none;
-}
+.ca-send:hover:not(:disabled) { background: var(--accent-primary-hover); transform: scale(1.08); }
+.ca-send:active:not(:disabled) { transform: scale(0.95); }
+.ca-send:disabled { background: var(--bg-panel-hover); color: var(--text-secondary); cursor: not-allowed; }
 
-/* RESIZER & TOGGLE Step 11 */
-.resizer {
-    width: 6px;
+/* ── RESIZER ─────────────────────────────────────────────────────────────────── */
+.ca-resizer {
+    width: 5px;
+    flex-shrink: 0;
     cursor: col-resize;
-    background: rgba(255,255,255,0.05);
+    background: var(--border-color);
     transition: background 0.2s;
-    flex-shrink: 0;
+    position: relative;
     z-index: 10;
 }
 
-.resizer:hover, .resizer:active {
-    background: var(--accent-primary);
-}
+.ca-resizer:hover, .ca-resizer:active { background: var(--accent-primary); }
 
-.recent-toggle-btn {
-    width: 24px;
-    background: var(--bg-panel);
-    border: 1px solid var(--border-color);
-    color: var(--text-secondary);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    border-radius: 0 4px 4px 0;
-    margin-top: 2rem;
-    height: 40px;
-    font-size: 0.8rem;
-}
-
-.recent-toggle-btn:hover {
-    color: var(--accent-primary);
-    background: var(--bg-panel-hover);
-}
-
-.toggle-wrapper {
-    width: 24px;
-    border-right: 1px solid var(--border-color);
-    background: var(--bg-app);
-    flex-shrink: 0;
-}
-
-/* RIGHT PANEL: ANALYTICS CANVAS */
-.analytics-canvas {
-    overflow-y: auto;
-    background: var(--bg-panel);
-    padding: 2rem;
+/* ── RIGHT: ANALYTICS CANVAS ─────────────────────────────────────────────────── */
+.ca-canvas {
     display: flex;
     flex-direction: column;
+    overflow-y: auto;
+    background: var(--bg-panel);
+    border-left: 1px solid var(--border-color);
+    min-width: 280px;
 }
 
-.analytics-canvas::-webkit-scrollbar {
-    width: 6px;
-}
-.analytics-canvas::-webkit-scrollbar-thumb {
-    background: var(--border-color);
-    border-radius: 4px;
-}
+.ca-canvas::-webkit-scrollbar { width: 6px; }
+.ca-canvas::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
 
-.canvas-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 2rem;
+.ca-canvas-content { padding: 1.5rem; }
+
+.ca-canvas-header {
+    margin-bottom: 1.5rem;
     padding-bottom: 1rem;
     border-bottom: 1px solid var(--border-color);
 }
 
-.download-btn {
-    padding: 0.6rem 1.2rem;
-    background: transparent;
+.ca-canvas-header h2 {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 700;
     color: var(--text-primary);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    font-size: 0.85rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
 }
 
-.download-btn:hover {
-    background: var(--bg-panel-hover);
-    /* no scale for subtle icons optionally, but global rule catches it */
-}
-
-.card {
-    background: var(--bg-panel);
-    color: var(--text-primary);
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-lg);
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-    box-shadow: var(--shadow-sm);
-}
-
-.card h3 {
-    margin-top: 0;
-    margin-bottom: 1rem;
-    font-size: 1.1rem;
-    color: var(--accent-primary);
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.analytics-summary {
-    font-size: 1.1rem;
-    line-height: 1.6;
-    color: #f3f4f6;
-}
-
-.chat-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.85rem;
-}
-
-.chat-table th {
-    background: rgba(255,255,255,0.05);
-    padding: 1rem;
-    text-align: left;
-    color: #9ca3af;
-    border-bottom: 2px solid rgba(255,255,255,0.1);
-}
-
-.chat-table td {
-    padding: 1rem;
-    border-bottom: 1px solid rgba(255,255,255,0.1);
-    color: #e5e7eb;
-}
-
-.chat-table tr:hover {
-    background: rgba(255,255,255,0.02);
-}
-
-.empty-canvas {
+.ca-canvas-empty {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     height: 100%;
+    padding: 2rem;
     color: var(--text-secondary);
     text-align: center;
 }
 
-/* Responsive Design (STEP 9.12) */
-@media (max-width: 1024px) {
-    .dashboard {
-        flex-direction: column;
-        height: auto;
-    }
-    
-    .recent-chats {
-        flex: none;
-        height: 200px;
-        border-right: none;
-        border-bottom: 1px solid var(--border-color);
-    }
-    
-    .recent-chats-header {
-        padding: 1rem;
-    }
-    
-    .chat-window {
-        flex: none;
-        height: 500px;
-    }
-    
-    .analytics-canvas {
-        flex: none;
-        height: auto;
-        border-left: none;
-        border-top: 1px solid var(--border-color);
-    }
+.ca-canvas-empty h2 { font-size: 1.2rem; font-weight: 700; margin: 0 0 0.5rem; }
+.ca-canvas-empty p  { font-size: 0.88rem; margin: 0; line-height: 1.5; }
+
+/* ── Cards (shared) ──────────────────────────────────────────────────────────── */
+.card {
+    background: var(--bg-app);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 1.35rem;
+    margin-bottom: 1.25rem;
 }
 
-@media (max-width: 768px) {
-    .chat-bubble {
-        max-width: 95%;
-    }
-    
-    .chat-input-container {
-        padding: 1rem;
-    }
+.card h3 {
+    margin: 0 0 1rem;
+    font-size: 1rem;
+    color: var(--accent-primary);
+    font-weight: 700;
+}
+
+.analytics-summary {
+    font-size: 1rem;
+    line-height: 1.65;
+    color: #f3f4f6;
+}
+
+/* ── Data table ───────────────────────────────────────────────────────────────── */
+.chat-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+}
+
+.chat-table th {
+    background: rgba(255,255,255,0.05);
+    padding: 0.75rem 1rem;
+    text-align: left;
+    color: #9ca3af;
+    font-weight: 600;
+    border-bottom: 2px solid rgba(255,255,255,0.1);
+    white-space: nowrap;
+}
+
+.chat-table td {
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    color: #e5e7eb;
+}
+
+.chat-table tr:hover td { background: rgba(255,255,255,0.025); }
+
+/* ── Responsive ───────────────────────────────────────────────────────────────── */
+@media (max-width: 960px) {
+    .ca-root { flex-direction: column; height: auto; min-height: 100vh; }
+    .ca-sidebar { width: 100% !important; height: 180px; border-right: none; border-bottom: 1px solid var(--border-color); }
+    .ca-sidebar.closed { height: 0; }
+    .ca-sidebar-inner { width: 100%; flex-direction: row; }
+    .ca-toggle { width: 100%; height: 28px; border-right: none; border-bottom: 1px solid var(--border-color); }
+    .ca-chat { min-width: 0; flex: none; height: 460px; }
+    .ca-resizer { display: none; }
+    .ca-canvas { width: 100% !important; height: auto; border-left: none; border-top: 1px solid var(--border-color); }
 }

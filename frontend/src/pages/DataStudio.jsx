@@ -231,7 +231,7 @@ const DataStudio = () => {
                 <section className="studio-main">
                     {selectedTable ? (
                         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                            <div className="main-header">
+                            <div className="studio-main-header">
                                 <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>{selectedTable}</h2>
                                 <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginTop: '1rem' }}>
                                     <div className="csg-pill">
