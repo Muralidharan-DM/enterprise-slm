@@ -2,6 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import API from '../services/api';
 import '../styles/OrgPages.css';
+import ConfirmModal from '../components/ConfirmModal';
+
+const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#ef4444', '#f59e0b', '#10b981', '#06b6d4', '#3b82f6'];
 
 const Modal = ({ title, children, onClose }) => (
     <div className="modal-overlay" onClick={onClose}>
@@ -19,6 +22,7 @@ const Geography = () => {
     const [regions, setRegions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [modal, setModal] = useState(null); // null | 'add' | { id, name }
+    const [confirmDelete, setConfirmDelete] = useState(null); // { id }
     const [formName, setFormName] = useState('');
 
     const fetchRegions = useCallback(async () => {
@@ -56,8 +60,10 @@ const Geography = () => {
         }
     };
 
-    const handleDelete = async (id) => {
-        if (!window.confirm('Delete this geography?')) return;
+    const handleDelete = async () => {
+        if (!confirmDelete) return;
+        const { id } = confirmDelete;
+        setConfirmDelete(null);
         try {
             await API.delete(`users/geographies/${id}/`);
             toast.success('Geography deleted');
@@ -87,19 +93,25 @@ const Geography = () => {
             {loading ? (
                 <div className="empty-state">Loading...</div>
             ) : (
-                <div className="chip-grid">
-                    {regions.map(region => (
-                        <div key={region.id} className="geo-card">
-                            <div className="geo-flag">🌐</div>
-                            <div className="geo-info">
-                                <div className="geo-name">{region.name}</div>
+                <div className="bu-grid">
+                    {regions.map((region, idx) => {
+                        const color = COLORS[idx % COLORS.length];
+                        const abbr = region.name.slice(0, 3).toUpperCase();
+                        return (
+                            <div key={region.id} className="bu-card" style={{ borderTop: `3px solid ${color}` }}>
+                                <div className="bu-header">
+                                    <div className="bu-code-badge" style={{ background: `${color}22`, color }}>
+                                        {abbr}
+                                    </div>
+                                    <div className="bu-actions">
+                                        <button className="btn-icon edit" onClick={() => openEdit(region)}>✏️</button>
+                                        <button className="btn-icon danger" onClick={() => setConfirmDelete({ id: region.id, name: region.name })}>🗑️</button>
+                                    </div>
+                                </div>
+                                <div className="bu-name">{region.name}</div>
                             </div>
-                            <div className="geo-actions">
-                                <button className="btn-icon edit" onClick={() => openEdit(region)}>✏️</button>
-                                <button className="btn-icon danger" onClick={() => handleDelete(region.id)}>🗑️</button>
-                            </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                     {regions.length === 0 && (
                         <div className="empty-state">
                             <span style={{ fontSize: '3rem' }}>🗺️</span>
@@ -108,6 +120,15 @@ const Geography = () => {
                     )}
                 </div>
             )}
+
+            <ConfirmModal
+                open={!!confirmDelete}
+                title={`Delete "${confirmDelete?.name}"?`}
+                message="This region will be permanently removed from the system."
+                confirmLabel="Delete Region"
+                onConfirm={handleDelete}
+                onCancel={() => setConfirmDelete(null)}
+            />
 
             {modal && (
                 <Modal

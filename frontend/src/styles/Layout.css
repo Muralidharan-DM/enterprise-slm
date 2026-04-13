@@ -351,3 +351,61 @@
     display: flex;
     flex-direction: column;
 }
+
+/* ─────────────────────────────────────────
+   RESPONSIVE — MOBILE SIDEBAR OVERLAY
+───────────────────────────────────────── */
+@media (max-width: 767px) {
+    .layout-sidebar {
+        position: fixed;
+        left: -260px;
+        top: 0;
+        height: 100vh;
+        width: 260px !important; /* full width always on mobile */
+        z-index: 200;
+        transition: left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .layout-sidebar.mobile-open {
+        left: 0;
+        box-shadow: 4px 0 30px rgba(0, 0, 0, 0.35);
+    }
+
+    /* collapsed class has no effect on mobile — sidebar is always hidden until toggled */
+    .layout-sidebar.collapsed {
+        left: -260px;
+    }
+
+    .layout-sidebar.collapsed .nav-section-header {
+        display: block; /* restore section headers — no icon-only mode on mobile */
+    }
+
+    .layout-sidebar.collapsed .nav-item {
+        justify-content: flex-start;
+        padding: 0.65rem 1rem;
+    }
+
+    .layout-main {
+        width: 100%;
+    }
+
+    .main-header {
+        padding: 0 1rem;
+    }
+}
+
+.sidebar-overlay {
+    display: none;
+}
+
+@media (max-width: 767px) {
+    .sidebar-overlay {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 199;
+        backdrop-filter: blur(2px);
+        -webkit-backdrop-filter: blur(2px);
+    }
+}

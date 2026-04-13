@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import API from '../services/api';
 import '../styles/OrgPages.css';
+import ConfirmModal from '../components/ConfirmModal';
 
 const Modal = ({ title, children, onClose }) => (
     <div className="modal-overlay" onClick={onClose}>
@@ -20,6 +21,7 @@ const HierarchyLevel = () => {
     const [loading, setLoading] = useState(true);
     const [modal, setModal] = useState(null); // null | 'add' | { id, name }
     const [formName, setFormName] = useState('');
+    const [confirmDelete, setConfirmDelete] = useState(null); // { id, name }
 
     const fetchLevels = useCallback(async () => {
         setLoading(true);
@@ -56,8 +58,10 @@ const HierarchyLevel = () => {
         }
     };
 
-    const handleDelete = async (id) => {
-        if (!window.confirm('Delete this hierarchy level?')) return;
+    const handleDelete = async () => {
+        if (!confirmDelete) return;
+        const { id } = confirmDelete;
+        setConfirmDelete(null);
         try {
             await API.delete(`users/hierarchy-levels/${id}/`);
             toast.success('Hierarchy level deleted');
@@ -89,7 +93,7 @@ const HierarchyLevel = () => {
                             </div>
                             <div className="hierarchy-actions">
                                 <button className="btn-icon edit" onClick={() => openEdit(level)}>✏️</button>
-                                <button className="btn-icon danger" onClick={() => handleDelete(level.id)}>🗑️</button>
+                                <button className="btn-icon danger" onClick={() => setConfirmDelete({ id: level.id, name: level.name })}>🗑️</button>
                             </div>
                         </div>
                     ))}
@@ -101,6 +105,15 @@ const HierarchyLevel = () => {
                     )}
                 </div>
             )}
+
+            <ConfirmModal
+                open={!!confirmDelete}
+                title={`Delete "${confirmDelete?.name}"?`}
+                message="This hierarchy level will be permanently removed."
+                confirmLabel="Delete Level"
+                onConfirm={handleDelete}
+                onCancel={() => setConfirmDelete(null)}
+            />
 
             {modal && (
                 <Modal

@@ -1,7 +1,8 @@
+import json
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from .models import ColumnSecurityGroup, RowSecurityGroup
+from .models import ColumnSecurityGroup, RowSecurityGroup, SecurityGroup, RowLevelSecurity, ColumnLevelSecurity, SecurityScope
 from users.models import User, Domain, SubDomain, UserProfile
 
 # Column schema per subdomain dataset
@@ -53,6 +54,13 @@ def get_datasets(request):
     else:
         schema = DATASET_SCHEMA
     return Response(schema)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_schema(request):
+    """Returns full dataset schema (table → columns list) for RLS/CLS rule builders."""
+    return Response(DATASET_SCHEMA)
 
 
 # ── CSG ─────────────────────────────────────────────────────────────────────
@@ -331,3 +339,128 @@ def rsg_add_user(request, id):
         return Response({"message": "User added"})
     except User.DoesNotExist:
         return Response({"error": "User not found"}, status=404)
+
+
+# ── Unified Security Groups ───────────────────────────────────────────────────
+
+def _parse_json_list(val):
+    """Parse a stored JSON list string; fall back gracefully.
+    Legacy rows stored plain strings (e.g. 'India') — wrap them in a list."""
+    if not val:
+        return []
+    try:
+        result = json.loads(val)
+        if isinstance(result, list):
+            return result
+        # json.loads parsed it as a non-list (e.g. a number) — treat as single item
+        return [result]
+    except (ValueError, TypeError):
+        # Plain string value — legacy single entry
+        return [val] if val.strip() else []
+
+
+def _serialize_group(g):
+    try:
+        s = g.scope
+        # Handle legacy single-string values for region/business_unit
+        raw_region = s.region or '[]'
+        raw_bu = s.business_unit or '[]'
+        regions = _parse_json_list(raw_region)
+        if not isinstance(regions, list):
+            regions = [raw_region] if raw_region else []
+        bus = _parse_json_list(raw_bu)
+        if not isinstance(bus, list):
+            bus = [raw_bu] if raw_bu else []
+        scope = {
+            "regions": regions,
+            "domains": _parse_json_list(s.domain),
+            "subdomains": _parse_json_list(s.subdomain),
+            "business_units": bus,
+        }
+    except SecurityScope.DoesNotExist:
+        scope = {"regions": [], "domains": [], "subdomains": [], "business_units": []}
+    return {
+        "id": g.id,
+        "name": g.name,
+        "description": g.description,
+        "role": g.role,
+        "created_at": g.created_at,
+        "updated_at": g.updated_at,
+        "rls": [{"id": r.id, "table_name": r.table_name, "column_name": r.column_name, "condition": r.condition} for r in g.rls.all()],
+        "cls": [{"id": c.id, "table_name": c.table_name, "column_name": c.column_name, "is_masked": c.is_masked} for c in g.cls.all()],
+        "scope": scope,
+    }
+
+
+def _save_group_details(group, data):
+    if "rls" in data:
+        group.rls.all().delete()
+        for r in data["rls"]:
+            if r.get("table_name") and r.get("column_name"):
+                RowLevelSecurity.objects.create(
+                    security_group=group,
+                    table_name=r["table_name"],
+                    column_name=r["column_name"],
+                    condition=r.get("condition", ""),
+                )
+    if "cls" in data:
+        group.cls.all().delete()
+        for c in data["cls"]:
+            if c.get("table_name") and c.get("column_name"):
+                ColumnLevelSecurity.objects.create(
+                    security_group=group,
+                    table_name=c["table_name"],
+                    column_name=c["column_name"],
+                    is_masked=c.get("is_masked", False),
+                )
+    if "scope" in data:
+        sc = data["scope"]
+        SecurityScope.objects.update_or_create(
+            security_group=group,
+            defaults={
+                "region": json.dumps(sc.get("regions", [])),
+                "domain": json.dumps(sc.get("domains", [])),
+                "subdomain": json.dumps(sc.get("subdomains", [])),
+                "business_unit": json.dumps(sc.get("business_units", [])),
+            },
+        )
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def manage_security_groups(request):
+    if request.method == 'GET':
+        groups = SecurityGroup.objects.prefetch_related('rls', 'cls').all().order_by('id')
+        return Response([_serialize_group(g) for g in groups])
+    name = request.data.get("name", "").strip()
+    if not name:
+        return Response({"error": "Name is required"}, status=400)
+    if SecurityGroup.objects.filter(name=name).exists():
+        return Response({"error": "A security group with this name already exists"}, status=400)
+    group = SecurityGroup.objects.create(
+        name=name,
+        description=request.data.get("description", "").strip(),
+        role=request.data.get("role", ""),
+    )
+    _save_group_details(group, request.data)
+    return Response({"id": group.id, "message": "Security group created"}, status=201)
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def security_group_detail(request, id):
+    try:
+        group = SecurityGroup.objects.prefetch_related('rls', 'cls').get(id=id)
+    except SecurityGroup.DoesNotExist:
+        return Response({"error": "Not found"}, status=404)
+    if request.method == 'GET':
+        return Response(_serialize_group(group))
+    if request.method == 'PUT':
+        group.name = request.data.get("name", group.name).strip()
+        group.description = request.data.get("description", group.description).strip()
+        group.role = request.data.get("role", group.role)
+        group.save()
+        _save_group_details(group, request.data)
+        return Response({"message": "Updated"})
+    group.delete()
+    return Response({"message": "Deleted"})

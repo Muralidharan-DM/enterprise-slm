@@ -27,8 +27,7 @@ const getMenu = (role) => {
         ...(isAdmin ? [{
             section: 'SECURITY',
             items: [
-                { name: 'Column Security', path: '/security/csg', icon: '🛡️' },
-                { name: 'Row Security', path: '/security/rsg', icon: '🔒' },
+                { name: 'Security Groups', path: '/security/groups', icon: '🛡️' },
             ]
         }] : []),
         {
@@ -46,6 +45,7 @@ const Layout = ({ children }) => {
     const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
     const [profileData, setProfileData] = useState(null);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    const [mobileOpen, setMobileOpen] = useState(false);
 
     useEffect(() => {
         document.body.setAttribute('data-theme', theme);
@@ -71,6 +71,17 @@ const Layout = ({ children }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userRaw, location.pathname]);
 
+    // Close mobile sidebar on route change
+    useEffect(() => { setMobileOpen(false); }, [location.pathname]);
+
+    const handleToggle = () => {
+        if (window.innerWidth < 768) {
+            setMobileOpen(prev => !prev);
+        } else {
+            setSidebarCollapsed(prev => !prev);
+        }
+    };
+
     const handleLogout = () => {
         localStorage.removeItem('user');
         navigate('/');
@@ -82,7 +93,11 @@ const Layout = ({ children }) => {
 
     return (
         <div className="layout-container">
-            <aside className={`layout-sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
+            {/* Mobile overlay backdrop */}
+            {mobileOpen && (
+                <div className="sidebar-overlay" onClick={() => setMobileOpen(false)} />
+            )}
+            <aside className={`layout-sidebar ${sidebarCollapsed ? 'collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
                 {/* Header */}
                 <div className="sidebar-header">
                     <img src="/logo.png" alt="Decision Minds" className="sidebar-logo" />
@@ -161,9 +176,9 @@ const Layout = ({ children }) => {
 
             <main className="layout-main">
                 <header className="main-header">
-                    <button 
-                        className="sidebar-toggle-btn" 
-                        onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                    <button
+                        className="sidebar-toggle-btn"
+                        onClick={handleToggle}
                         title={sidebarCollapsed ? "Open Sidebar" : "Close Sidebar"}
                     >
                         ☰

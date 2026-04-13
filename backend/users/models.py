@@ -6,9 +6,10 @@ class User(AbstractUser):
     ROLE_CHOICES = (
         ('admin', 'Admin'),
         ('user', 'User'),
+        ('super_user', 'Super User'),
     )
     email = models.EmailField(unique=True)
-    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='user')
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='user')
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
 
@@ -51,17 +52,24 @@ class HierarchyLevel(BaseMasterModel):
 
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
-    
-    role = models.CharField(max_length=20, default="user") # ADMIN / USER
-    
+
+    role = models.CharField(max_length=20, default="user")
+
     # Hierarchical Relationship
     hierarchy_level = models.ForeignKey(HierarchyLevel, on_delete=models.SET_NULL, null=True, blank=True)
 
-    # Multi-Entity Access Control (PRO-GRADE ManyToMany)
+    # Multi-Entity Access Control
     domains = models.ManyToManyField(Domain, blank=True)
     subdomains = models.ManyToManyField(SubDomain, blank=True)
     geographies = models.ManyToManyField(Geography, blank=True)
     business_units = models.ManyToManyField(BusinessUnit, blank=True)
+
+    # Unified Security Groups (many-to-many — a user may belong to multiple groups)
+    security_groups = models.ManyToManyField(
+        'security.SecurityGroup', blank=True, related_name='user_profiles'
+    )
+
+    contact = models.CharField(max_length=50, blank=True, default='')
 
     profile_photo = models.ImageField(upload_to="profiles/", null=True, blank=True)
 

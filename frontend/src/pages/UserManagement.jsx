@@ -70,6 +70,7 @@ const UserManagement = () => {
     });
 
     const admins = users.filter(u => u.role === 'admin').length;
+    const superUsers = users.filter(u => u.role === 'super_user').length;
     const regular = users.filter(u => u.role === 'user').length;
 
     return (
@@ -92,6 +93,7 @@ const UserManagement = () => {
             <div className="um-stats-row">
                 <StatCard label="Total Users" value={users.length} color="#6366f1" />
                 <StatCard label="Admins" value={admins} color="#8b5cf6" />
+                <StatCard label="Super Users" value={superUsers} color="#f59e0b" />
                 <StatCard label="Regular Users" value={regular} color="#10b981" />
             </div>
 
@@ -110,9 +112,10 @@ const UserManagement = () => {
                 </div>
                 <div className="um-role-filter">
                     {[
-                        { key: 'all',   label: 'All' },
-                        { key: 'admin', label: 'Admins' },
-                        { key: 'user',  label: 'Users' },
+                        { key: 'all',        label: 'All' },
+                        { key: 'admin',      label: 'Admins' },
+                        { key: 'super_user', label: 'Super Users' },
+                        { key: 'user',       label: 'Users' },
                     ].map(({ key, label }) => (
                         <button
                             key={key}
@@ -131,21 +134,20 @@ const UserManagement = () => {
                         Loading users…
                     </div>
                 ) : (
-                    <table className="um-table-inner">
+                    <div className="um-table-scroll"><table className="um-table-inner">
                         <thead>
                             <tr>
                                 <th>User</th>
                                 <th>Role</th>
-                                <th>Hierarchy</th>
-                                <th>Domains</th>
-                                <th>Geography / BU</th>
+                                <th>Contact</th>
+                                <th>Security Group</th>
                                 <th style={{ textAlign: 'right' }}>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {filtered.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6}>
+                                    <td colSpan={5}>
                                         <div className="um-empty">
                                             {users.length === 0
                                                 ? 'No users found. Click "Create User" to add the first one.'
@@ -165,35 +167,28 @@ const UserManagement = () => {
                                         </div>
                                     </td>
                                     <td>
-                                        <span className={`role-badge ${user.role}`}>{user.role}</span>
+                                        <span className={`role-badge ${user.role}`}>
+                                            {user.role === 'super_user' ? 'Super User' : user.role}
+                                        </span>
                                     </td>
                                     <td>
-                                        {user.hierarchy
-                                            ? <span className="um-hierarchy-tag">{user.hierarchy}</span>
+                                        {user.contact
+                                            ? <span className="um-contact">{user.contact}</span>
                                             : <Dash />}
                                     </td>
                                     <td>
-                                        {user.domains?.length > 0 ? (
-                                            <div className="um-tags-wrap">
-                                                {user.domains.slice(0, 3).map(d => (
-                                                    <span key={d} className="um-domain-tag">{d}</span>
-                                                ))}
-                                                {user.domains.length > 3 && (
-                                                    <span className="um-tag-more">+{user.domains.length - 3}</span>
-                                                )}
-                                            </div>
-                                        ) : <Dash />}
-                                    </td>
-                                    <td>
-                                        <div className="um-geo-bu">
-                                            {user.geographies?.length > 0 && (
-                                                <span className="um-count-badge geo">{user.geographies.length} geo</span>
-                                            )}
-                                            {user.business_units?.length > 0 && (
-                                                <span className="um-count-badge bu">{user.business_units.length} BU</span>
-                                            )}
-                                            {!user.geographies?.length && !user.business_units?.length && <Dash />}
-                                        </div>
+                                        {user.security_groups && user.security_groups.length > 0
+                                            ? (
+                                                <div className="um-sg-tags">
+                                                    {user.security_groups.slice(0, 2).map(g => (
+                                                        <span key={g.id} className="um-security-tag">🛡️ {g.name}</span>
+                                                    ))}
+                                                    {user.security_groups.length > 2 && (
+                                                        <span className="um-tag-more">+{user.security_groups.length - 2}</span>
+                                                    )}
+                                                </div>
+                                            )
+                                            : <Dash />}
                                     </td>
                                     <td>
                                         <div className="um-actions">
@@ -220,7 +215,7 @@ const UserManagement = () => {
                                 </tr>
                             ))}
                         </tbody>
-                    </table>
+                    </table></div>
                 )}
             </div>
 

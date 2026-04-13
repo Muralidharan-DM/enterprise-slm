@@ -4,65 +4,28 @@ import API from '../services/api';
 import toast from 'react-hot-toast';
 import '../styles/UserManagement.css';
 
-const SectionHeader = ({ number, color, title, subtitle }) => (
-    <div className="uf-section-header">
-        <div className="uf-section-num" style={{ background: `${color}22`, color }}>{number}</div>
-        <div>
-            <div className="uf-section-title">{title}</div>
-            {subtitle && <div className="uf-section-sub">{subtitle}</div>}
-        </div>
-    </div>
-);
-
-const ChipSelect = ({ options, selected, onToggle, emptyMsg }) => (
-    <div className="chip-group">
-        {options.length === 0
-            ? <span className="text-secondary" style={{ fontSize: '0.85rem', fontStyle: 'italic' }}>{emptyMsg || 'No options available'}</span>
-            : options.map(opt => (
-                <div
-                    key={opt.id}
-                    className={`chip ${selected.includes(opt.name) ? 'selected' : ''}`}
-                    onClick={() => onToggle(opt.name)}
-                >
-                    {opt.name}
-                </div>
-            ))
-        }
-    </div>
-);
-
 const UserForm = ({ mode }) => {
     const { id } = useParams();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [pageLoading, setPageLoading] = useState(mode === 'edit');
-
-    const [master, setMaster] = useState({
-        domains: [],
-        subdomains: [],
-        geographies: [],
-        business_units: [],
-        hierarchy_levels: []
-    });
+    const [securityGroups, setSecurityGroups] = useState([]);
 
     const [form, setForm] = useState({
         username: '',
         email: '',
         password: '',
+        contact: '',
         role: 'user',
-        hierarchy: '',
-        domains: [],
-        subdomains: [],
-        geographies: [],
-        business_units: []
+        security_group_ids: [], // list of selected group IDs (numbers)
     });
 
-    const loadMaster = useCallback(async () => {
+    const loadGroups = useCallback(async () => {
         try {
-            const res = await API.get('users/master-data/');
-            setMaster(res.data);
+            const res = await API.get('security/groups/');
+            setSecurityGroups(res.data);
         } catch {
-            toast.error("Failed to load options");
+            toast.error('Failed to load security groups');
         }
     }, []);
 
@@ -74,15 +37,12 @@ const UserForm = ({ mode }) => {
                 username: d.username || '',
                 email: d.email || '',
                 password: '',
+                contact: d.contact || '',
                 role: d.role || 'user',
-                hierarchy: d.hierarchy || '',
-                domains: d.domains || [],
-                subdomains: d.subdomains || [],
-                geographies: d.geographies || [],
-                business_units: d.business_units || [],
+                security_group_ids: (d.security_groups || []).map(g => g.id),
             });
         } catch {
-            toast.error("Failed to load user data");
+            toast.error('Failed to load user data');
             navigate('/users');
         } finally {
             setPageLoading(false);
@@ -90,61 +50,62 @@ const UserForm = ({ mode }) => {
     }, [id, navigate]);
 
     useEffect(() => {
-        loadMaster();
+        loadGroups();
         if (mode === 'edit' && id) fetchUser();
-    }, [mode, id, loadMaster, fetchUser]);
+    }, [mode, id, loadGroups, fetchUser]);
 
     const handleChange = e => {
         const { name, value } = e.target;
-        setForm(prev => ({ ...prev, [name]: value }));
-    };
-
-    const toggleChip = (field, name) => {
         setForm(prev => {
-            const current = prev[field] || [];
-            return {
-                ...prev,
-                [field]: current.includes(name)
-                    ? current.filter(i => i !== name)
-                    : [...current, name]
-            };
+            const next = { ...prev, [name]: value };
+            // When role changes, clear security_groups that don't match new role
+            if (name === 'role') {
+                const matchingIds = securityGroups
+                    .filter(g => g.role === value)
+                    .map(g => g.id);
+                next.security_group_ids = prev.security_group_ids.filter(id => matchingIds.includes(id));
+            }
+            return next;
         });
     };
 
-    const handleDomainToggle = name => {
+    // Toggle a group chip (select / deselect)
+    const toggleGroup = (groupId) => {
         setForm(prev => {
-            const current = prev.domains;
-            const next = current.includes(name)
-                ? current.filter(i => i !== name)
-                : [...current, name];
-            // drop subdomains that no longer belong to any selected domain
-            const validSubs = master.subdomains
-                .filter(s => next.includes(s.domain))
-                .map(s => s.name);
-            return {
-                ...prev,
-                domains: next,
-                subdomains: prev.subdomains.filter(s => validSubs.includes(s))
-            };
+            const ids = prev.security_group_ids;
+            const next = ids.includes(groupId)
+                ? ids.filter(i => i !== groupId)
+                : [...ids, groupId];
+            return { ...prev, security_group_ids: next };
         });
     };
 
-    const availableSubdomains = master.subdomains.filter(s => form.domains.includes(s.domain));
+    // Only show security groups matching the currently selected role
+    const filteredGroups = securityGroups.filter(g => g.role === form.role);
 
     const handleSave = async e => {
         e.preventDefault();
         setLoading(true);
+        const payload = {
+            username: form.username,
+            email: form.email,
+            contact: form.contact,
+            role: form.role,
+            security_group_ids: form.security_group_ids,
+        };
+        if (form.password) payload.password = form.password;
         try {
             if (mode === 'create') {
-                await API.post('users/users/create/', form);
-                toast.success("User created successfully");
+                if (!form.password) { toast.error('Password is required'); setLoading(false); return; }
+                await API.post('users/users/create/', { ...payload, password: form.password });
+                toast.success('User created successfully');
             } else {
-                await API.put(`users/users/update/${id}/`, form);
-                toast.success("User updated successfully");
+                await API.put(`users/users/update/${id}/`, payload);
+                toast.success('User updated successfully');
             }
             navigate('/users');
         } catch (err) {
-            toast.error(err.response?.data?.error || "Save failed");
+            toast.error(err.response?.data?.error || 'Save failed');
         } finally {
             setLoading(false);
         }
@@ -158,9 +119,10 @@ const UserForm = ({ mode }) => {
         );
     }
 
+    const selectedCount = form.security_group_ids.length;
+
     return (
         <div className="user-management-container">
-            {/* Page header */}
             <div className="uf-page-header">
                 <button className="uf-back-btn" onClick={() => navigate('/users')}>
                     <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
@@ -174,152 +136,138 @@ const UserForm = ({ mode }) => {
                     </h1>
                     <p className="text-secondary">
                         {mode === 'create'
-                            ? 'Set up credentials, role, and access permissions for a new user.'
-                            : 'Update user information, role, and access permissions.'}
+                            ? 'Set up credentials, role, and security groups for the new user.'
+                            : 'Update user credentials, role, and security group assignments.'}
                     </p>
                 </div>
             </div>
 
-            <form onSubmit={handleSave} className="space-y-8">
-
-                {/* ── Section 1: User Information ── */}
+            <form onSubmit={handleSave}>
                 <div className="card">
-                    <SectionHeader number="01" color="#6366f1" title="User Information" subtitle="Basic account credentials and role assignment" />
+                    <div className="uf-section-header">
+                        <div className="uf-section-num" style={{ background: '#6366f122', color: '#6366f1' }}>01</div>
+                        <div>
+                            <div className="uf-section-title">User Information</div>
+                            <div className="uf-section-sub">Basic account credentials and role assignment</div>
+                        </div>
+                    </div>
                     <div className="um-grid-2">
                         <div>
                             <label className="form-label">Full Name <span className="uf-required">*</span></label>
-                            <input
-                                name="username"
-                                value={form.username}
-                                onChange={handleChange}
-                                required
-                                className="form-input"
-                                placeholder="e.g. John Smith"
-                            />
+                            <input name="username" value={form.username} onChange={handleChange} required className="form-input" placeholder="e.g. John Smith" />
                         </div>
                         <div>
                             <label className="form-label">Email Address <span className="uf-required">*</span></label>
-                            <input
-                                type="email"
-                                name="email"
-                                value={form.email}
-                                onChange={handleChange}
-                                required
-                                className="form-input"
-                                placeholder="email@enterprise.com"
-                            />
+                            <input type="email" name="email" value={form.email} onChange={handleChange} required className="form-input" placeholder="email@enterprise.com" />
                         </div>
                         <div>
                             <label className="form-label">
-                                {mode === 'create' ? 'Password' : 'New Password'}
-                                {mode === 'create' && <span className="uf-required"> *</span>}
-                                {mode === 'edit' && <span className="uf-optional"> (leave blank to keep current)</span>}
+                                {mode === 'create' ? <>Password <span className="uf-required">*</span></> : <>New Password <span className="uf-optional">(leave blank to keep current)</span></>}
                             </label>
-                            <input
-                                type="password"
-                                name="password"
-                                value={form.password}
-                                onChange={handleChange}
-                                required={mode === 'create'}
-                                className="form-input"
-                                placeholder={mode === 'edit' ? '••••••••' : 'Enter password'}
-                            />
+                            <input type="password" name="password" value={form.password} onChange={handleChange} required={mode === 'create'} className="form-input" placeholder={mode === 'edit' ? '••••••••' : 'Enter password'} />
+                        </div>
+                        <div>
+                            <label className="form-label">Contact</label>
+                            <input name="contact" value={form.contact} onChange={handleChange} className="form-input" placeholder="e.g. +1 555 000 0000" />
                         </div>
                         <div>
                             <label className="form-label">Role <span className="uf-required">*</span></label>
-                            <select
-                                name="role"
-                                value={form.role}
-                                onChange={handleChange}
-                                className="form-input uf-select"
-                            >
+                            <select name="role" value={form.role} onChange={handleChange} className="form-input uf-select">
                                 <option value="user">User — Standard access</option>
+                                <option value="super_user">Super User — Elevated access</option>
                                 <option value="admin">Admin — Full privileges</option>
                             </select>
                         </div>
                     </div>
                 </div>
 
-                {/* ── Section 2: Organizational Scope ── */}
-                <div className="card">
-                    <SectionHeader number="02" color="#8b5cf6" title="Organizational Scope" subtitle="Hierarchy level, domains, and subdomains this user can access" />
-                    <div className="space-y-6">
+                <div className="card" style={{ marginTop: '1.5rem' }}>
+                    <div className="uf-section-header">
+                        <div className="uf-section-num" style={{ background: '#8b5cf622', color: '#8b5cf6' }}>02</div>
                         <div>
-                            <label className="form-label">Hierarchy Level</label>
-                            <select
-                                name="hierarchy"
-                                value={form.hierarchy}
-                                onChange={handleChange}
-                                className="form-input uf-select"
-                            >
-                                <option value="">— Not assigned —</option>
-                                {master.hierarchy_levels.map(lvl => (
-                                    <option key={lvl.id} value={lvl.name}>{lvl.name}</option>
-                                ))}
-                            </select>
+                            <div className="uf-section-title">
+                                Security Groups
+                                {selectedCount > 0 && (
+                                    <span style={{
+                                        marginLeft: '0.6rem',
+                                        background: '#6366f1',
+                                        color: '#fff',
+                                        borderRadius: '12px',
+                                        padding: '2px 10px',
+                                        fontSize: '0.72rem',
+                                        fontWeight: 700,
+                                        verticalAlign: 'middle',
+                                    }}>{selectedCount} selected</span>
+                                )}
+                            </div>
+                            <div className="uf-section-sub">Select one or more security groups that control this user's data access</div>
                         </div>
+                    </div>
 
-                        <div>
-                            <label className="form-label">
-                                Domains
-                                {form.domains.length > 0 && <span className="uf-count"> ({form.domains.length} selected)</span>}
-                            </label>
-                            <ChipSelect
-                                options={master.domains}
-                                selected={form.domains}
-                                onToggle={handleDomainToggle}
-                            />
-                        </div>
+                    <div>
+                        <label className="form-label">
+                            Security Groups
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginLeft: '0.4rem', fontWeight: 400 }}>
+                                (showing {form.role.replace('_', ' ')} groups — click to select/deselect)
+                            </span>
+                        </label>
 
-                        <div>
-                            <label className="form-label">
-                                Subdomains
-                                {form.subdomains.length > 0 && <span className="uf-count"> ({form.subdomains.length} selected)</span>}
-                            </label>
-                            <ChipSelect
-                                options={availableSubdomains}
-                                selected={form.subdomains}
-                                onToggle={name => toggleChip('subdomains', name)}
-                                emptyMsg={form.domains.length === 0 ? 'Select a domain first to see subdomains' : 'No subdomains for selected domains'}
-                            />
-                        </div>
+                        {filteredGroups.length === 0 ? (
+                            <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+                                No security groups for <strong>{form.role.replace('_', ' ')}</strong> role.{' '}
+                                <a href="/security/groups" style={{ color: 'var(--accent-primary)' }}>Create one in Security Groups.</a>
+                            </p>
+                        ) : (
+                            <div className="uf-sg-chip-grid">
+                                {filteredGroups.map(g => {
+                                    const selected = form.security_group_ids.includes(g.id);
+                                    return (
+                                        <button
+                                            key={g.id}
+                                            type="button"
+                                            className={`uf-sg-chip${selected ? ' selected' : ''}`}
+                                            onClick={() => toggleGroup(g.id)}
+                                        >
+                                            <span className="uf-sg-chip-check">
+                                                {selected ? (
+                                                    <svg viewBox="0 0 16 16" fill="currentColor" width="12" height="12">
+                                                        <path d="M13.854 3.646a.5.5 0 010 .708l-7 7a.5.5 0 01-.708 0l-3.5-3.5a.5.5 0 11.708-.708L6.5 10.293l6.646-6.647a.5.5 0 01.708 0z"/>
+                                                    </svg>
+                                                ) : (
+                                                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" width="12" height="12">
+                                                        <rect x="2" y="2" width="12" height="12" rx="2"/>
+                                                    </svg>
+                                                )}
+                                            </span>
+                                            <span className="uf-sg-chip-name">{g.name}</span>
+                                            {g.description && (
+                                                <span className="uf-sg-chip-desc">{g.description}</span>
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+
+                        {selectedCount > 0 && (
+                            <div className="uf-sg-selected-summary">
+                                <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14" style={{ flexShrink: 0 }}>
+                                    <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                                </svg>
+                                <span>
+                                    <strong>{selectedCount}</strong> group{selectedCount !== 1 ? 's' : ''} assigned:{' '}
+                                    {filteredGroups
+                                        .filter(g => form.security_group_ids.includes(g.id))
+                                        .map(g => g.name)
+                                        .join(', ')}
+                                </span>
+                            </div>
+                        )}
                     </div>
                 </div>
 
-                {/* ── Section 3: Regional & Business Access ── */}
-                <div className="card">
-                    <SectionHeader number="03" color="#ec4899" title="Regional & Business Access" subtitle="Geographic regions and business units this user operates in" />
-                    <div className="space-y-6">
-                        <div>
-                            <label className="form-label">
-                                Geographies
-                                {form.geographies.length > 0 && <span className="uf-count"> ({form.geographies.length} selected)</span>}
-                            </label>
-                            <ChipSelect
-                                options={master.geographies}
-                                selected={form.geographies}
-                                onToggle={name => toggleChip('geographies', name)}
-                            />
-                        </div>
-                        <div>
-                            <label className="form-label">
-                                Business Units
-                                {form.business_units.length > 0 && <span className="uf-count"> ({form.business_units.length} selected)</span>}
-                            </label>
-                            <ChipSelect
-                                options={master.business_units}
-                                selected={form.business_units}
-                                onToggle={name => toggleChip('business_units', name)}
-                            />
-                        </div>
-                    </div>
-                </div>
-
-                {/* Footer actions */}
                 <div className="uf-footer">
-                    <button type="button" className="uf-discard-btn" onClick={() => navigate('/users')}>
-                        Cancel
-                    </button>
+                    <button type="button" className="uf-discard-btn" onClick={() => navigate('/users')}>Cancel</button>
                     <button type="submit" disabled={loading} className="btn-primary uf-submit-btn">
                         {loading
                             ? <><span className="uf-btn-spinner" /> Saving...</>

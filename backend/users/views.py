@@ -22,28 +22,6 @@ def _profile_geographies(profile):
 def _profile_business_units(profile):
     return list(profile.business_units.values_list('name', flat=True))
 
-def _set_m2m(profile, data):
-    domain_names = data.get("domains", [])
-    profile.domains.set(Domain.objects.filter(name__in=domain_names))
-
-    sub_names = data.get("subdomains", [])
-    profile.subdomains.set(SubDomain.objects.filter(name__in=sub_names))
-
-    geo_names = data.get("geographies", [])
-    profile.geographies.set(Geography.objects.filter(name__in=geo_names))
-
-    bu_names = data.get("business_units", [])
-    profile.business_units.set(BusinessUnit.objects.filter(name__in=bu_names))
-
-    hierarchy_name = data.get("hierarchy")
-    if hierarchy_name:
-        try:
-            profile.hierarchy_level = HierarchyLevel.objects.get(name=hierarchy_name)
-        except HierarchyLevel.DoesNotExist:
-            profile.hierarchy_level = None
-    else:
-        profile.hierarchy_level = None
-
 # ---------- auth ----------
 
 @api_view(['GET'])
@@ -93,6 +71,7 @@ def my_profile(request):
             "last_name": request.user.last_name,
             "email": request.user.email,
             "role": profile.role,
+            "contact": profile.contact,
             "hierarchy": profile.hierarchy_level.name if profile.hierarchy_level else "",
             "domains": _profile_domains(profile),
             "subdomains": _profile_subdomains(profile),
@@ -131,16 +110,18 @@ def get_users(request):
                 .select_related('hierarchy_level')
                 .first()
             )
+            sg_list = list(profile.security_groups.values('id', 'name')) if profile else []
             data.append({
                 "id": u.id,
                 "name": u.username,
                 "email": u.email,
                 "role": profile.role if profile else "user",
-                "hierarchy": profile.hierarchy_level.name if profile and profile.hierarchy_level else None,
-                "domains": _profile_domains(profile) if profile else [],
-                "subdomains": _profile_subdomains(profile) if profile else [],
-                "geographies": _profile_geographies(profile) if profile else [],
-                "business_units": _profile_business_units(profile) if profile else [],
+                "contact": profile.contact if profile else "",
+                # Legacy single-group fields (first group, for backward compat display)
+                "security_group": sg_list[0]['name'] if sg_list else None,
+                "security_group_id": sg_list[0]['id'] if sg_list else None,
+                # Full list of assigned groups
+                "security_groups": sg_list,
             })
         return Response(data)
     except Exception as e:
@@ -153,16 +134,18 @@ def get_user_detail(request, user_id):
     try:
         user = User.objects.get(id=user_id)
         profile, _ = UserProfile.objects.get_or_create(user=user)
+        sg_list = list(profile.security_groups.values('id', 'name'))
         return Response({
             "id": user.id,
             "username": user.username,
             "email": user.email,
             "role": profile.role,
-            "hierarchy": profile.hierarchy_level.name if profile.hierarchy_level else "",
-            "domains": _profile_domains(profile),
-            "subdomains": _profile_subdomains(profile),
-            "geographies": _profile_geographies(profile),
-            "business_units": _profile_business_units(profile),
+            "contact": profile.contact,
+            "security_groups": sg_list,
+            # Legacy single-group fields for backward compat
+            "security_group": sg_list[0]['name'] if sg_list else None,
+            "security_group_id": sg_list[0]['id'] if sg_list else None,
+            "security_group_ids": [g['id'] for g in sg_list],
         })
     except User.DoesNotExist:
         return Response({"error": "User not found"}, status=404)
@@ -181,8 +164,18 @@ def create_user(request):
         )
         profile, _ = UserProfile.objects.get_or_create(user=user)
         profile.role = role
-        _set_m2m(profile, request.data)
+        contact = request.data.get("contact", "")
+        if contact is not None:
+            profile.contact = contact
         profile.save()
+        # Assign security groups (accepts list of ids)
+        sg_ids = request.data.get("security_group_ids", [])
+        if not isinstance(sg_ids, list):
+            sg_ids = [sg_ids] if sg_ids else []
+        if sg_ids:
+            from security.models import SecurityGroup
+            groups = SecurityGroup.objects.filter(id__in=sg_ids)
+            profile.security_groups.set(groups)
         return Response({"message": "User created", "id": user.id}, status=201)
     except Exception as e:
         return Response({"error": str(e)}, status=400)
@@ -209,8 +202,19 @@ def update_user_api(request, user_id):
 
         user.save()
 
-        _set_m2m(profile, request.data)
+        if "contact" in request.data:
+            profile.contact = request.data.get("contact", "")
         profile.save()
+
+        # Update security groups (accepts list of ids; empty list clears all)
+        if "security_group_ids" in request.data:
+            sg_ids = request.data.get("security_group_ids", [])
+            if not isinstance(sg_ids, list):
+                sg_ids = [sg_ids] if sg_ids else []
+            from security.models import SecurityGroup
+            groups = SecurityGroup.objects.filter(id__in=sg_ids)
+            profile.security_groups.set(groups)
+
         return Response({"message": "Updated successfully"})
     except User.DoesNotExist:
         return Response({"error": "User not found"}, status=404)
@@ -230,6 +234,10 @@ def delete_user(request, user_id):
     except User.DoesNotExist:
         return Response({"error": "User not found"}, status=404)
 
+def _get_security_groups():
+    from security.models import SecurityGroup
+    return list(SecurityGroup.objects.values('id', 'name'))
+
 # ---------- master data ----------
 
 @api_view(['GET'])
@@ -244,6 +252,7 @@ def get_master_data(request):
         "geographies": list(Geography.objects.values('id', 'name')),
         "business_units": list(BusinessUnit.objects.values('id', 'name')),
         "hierarchy_levels": list(HierarchyLevel.objects.values('id', 'name')),
+        "security_groups": _get_security_groups(),
     })
 
 # ---------- domain management ----------

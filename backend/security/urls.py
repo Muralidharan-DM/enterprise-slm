@@ -1,17 +1,23 @@
 from django.urls import path
 from .views import (
-    get_datasets,
+    get_datasets, get_schema,
     get_csg, create_csg, get_csg_detail, update_csg, delete_csg,
     csg_auto_users, csg_available_users, csg_add_user,
     get_rsg, create_rsg, get_rsg_detail, update_rsg, delete_rsg,
     rsg_auto_users, rsg_available_users, rsg_add_user,
+    manage_security_groups, security_group_detail,
 )
 
 urlpatterns = [
-    # Datasets
+    # Datasets / Schema
     path('datasets/', get_datasets, name='get_datasets'),
+    path('schema/', get_schema, name='get_schema'),
 
-    # CSG
+    # Unified Security Groups
+    path('groups/', manage_security_groups, name='manage_security_groups'),
+    path('groups/<int:id>/', security_group_detail, name='security_group_detail'),
+
+    # CSG (legacy)
     path('csg/', get_csg, name='get_csg'),
     path('csg/create/', create_csg, name='create_csg'),
     path('csg/<int:id>/', get_csg_detail, name='get_csg_detail'),
@@ -21,7 +27,7 @@ urlpatterns = [
     path('csg/<int:id>/available-users/', csg_available_users, name='csg_available_users'),
     path('csg/<int:id>/add-user/', csg_add_user, name='csg_add_user'),
 
-    # RSG
+    # RSG (legacy)
     path('rsg/', get_rsg, name='get_rsg'),
     path('rsg/create/', create_rsg, name='create_rsg'),
     path('rsg/<int:id>/', get_rsg_detail, name='get_rsg_detail'),

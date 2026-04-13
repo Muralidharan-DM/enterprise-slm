@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import API from '../services/api';
 import toast from 'react-hot-toast';
 import '../styles/CSG.css';
+import ConfirmModal from '../components/ConfirmModal';
 
 // ── Step bar ──────────────────────────────────────────────────────────────────
 const StepBar = ({ current, total, labels }) => (
@@ -71,6 +72,9 @@ const RSG = () => {
     const [view, setView] = useState('list');
     const [detailGroup, setDetailGroup] = useState(null);
     const [autoUsers, setAutoUsers] = useState([]);
+
+    // Delete confirm modal
+    const [confirmDelete, setConfirmDelete] = useState(null); // { id, name, fromDetail }
 
     // Add user modal
     const [addUserOpen, setAddUserOpen] = useState(false);
@@ -248,11 +252,14 @@ const RSG = () => {
         setAutoUsers(autoRes.data || []);
     };
 
-    const handleDelete = async (id) => {
-        if (!window.confirm('Delete this row security group?')) return;
+    const handleDelete = async () => {
+        if (!confirmDelete) return;
+        const { id, fromDetail } = confirmDelete;
+        setConfirmDelete(null);
         try {
             await API.delete(`security/rsg/${id}/delete/`);
             toast.success('Group deleted');
+            if (fromDetail) setView('list');
             fetchGroups();
         } catch { toast.error('Delete failed'); }
     };
@@ -310,7 +317,7 @@ const RSG = () => {
                     </button>
                     <div className="sg-detail-topbar-actions">
                         <button className="btn-secondary" onClick={() => openEdit(detailGroup)}>✏️ Edit Group</button>
-                        <button className="btn-danger" onClick={async () => { await handleDelete(detailGroup.id); setView('list'); }}>🗑️ Delete</button>
+                        <button className="btn-danger" onClick={() => setConfirmDelete({ id: detailGroup.id, name: detailGroup.name, fromDetail: true })}>🗑️ Delete</button>
                     </div>
                 </div>
 
@@ -640,7 +647,7 @@ const RSG = () => {
                             <div className="sg-card-actions">
                                 <button className="btn-secondary sg-btn-view" onClick={() => openDetail(g)}>View Details</button>
                                 <button className="sg-icon-btn" title="Edit" onClick={() => openEdit(g)}>✏️</button>
-                                <button className="sg-icon-btn danger" title="Delete" onClick={() => handleDelete(g.id)}>🗑️</button>
+                                <button className="sg-icon-btn danger" title="Delete" onClick={() => setConfirmDelete({ id: g.id, name: g.name, fromDetail: false })}>🗑️</button>
                             </div>
                         </div>
                     ))}
@@ -667,6 +674,15 @@ const RSG = () => {
                     </div>
                 </div>
             )}
+
+            <ConfirmModal
+                open={!!confirmDelete}
+                title={`Delete "${confirmDelete?.name}"?`}
+                message="This row security group will be permanently removed. Users will lose row-level restrictions applied by this group."
+                confirmLabel="Delete Group"
+                onConfirm={handleDelete}
+                onCancel={() => setConfirmDelete(null)}
+            />
         </div>
     );
 };

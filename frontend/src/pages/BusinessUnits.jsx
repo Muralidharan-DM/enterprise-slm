@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import API from '../services/api';
 import '../styles/OrgPages.css';
+import ConfirmModal from '../components/ConfirmModal';
 
 const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#ef4444', '#f59e0b', '#10b981', '#06b6d4', '#3b82f6'];
 
@@ -23,6 +24,7 @@ const BusinessUnits = () => {
     const [modal, setModal] = useState(null); // null | 'add' | { id, name }
     const [formName, setFormName] = useState('');
     const [formColor, setFormColor] = useState(COLORS[0]);
+    const [confirmDelete, setConfirmDelete] = useState(null); // { id, name }
 
     const fetchUnits = useCallback(async () => {
         setLoading(true);
@@ -63,8 +65,10 @@ const BusinessUnits = () => {
         }
     };
 
-    const handleDelete = async (id) => {
-        if (!window.confirm('Delete this business unit?')) return;
+    const handleDelete = async () => {
+        if (!confirmDelete) return;
+        const { id } = confirmDelete;
+        setConfirmDelete(null);
         try {
             await API.delete(`users/business-units/${id}/`);
             toast.success('Business unit deleted');
@@ -105,7 +109,7 @@ const BusinessUnits = () => {
                                     </div>
                                     <div className="bu-actions">
                                         <button className="btn-icon edit" onClick={() => openEdit(unit)}>✏️</button>
-                                        <button className="btn-icon danger" onClick={() => handleDelete(unit.id)}>🗑️</button>
+                                        <button className="btn-icon danger" onClick={() => setConfirmDelete({ id: unit.id, name: unit.name })}>🗑️</button>
                                     </div>
                                 </div>
                                 <div className="bu-name">{unit.name}</div>
@@ -120,6 +124,15 @@ const BusinessUnits = () => {
                     )}
                 </div>
             )}
+
+            <ConfirmModal
+                open={!!confirmDelete}
+                title={`Delete "${confirmDelete?.name}"?`}
+                message="This business unit will be permanently removed."
+                confirmLabel="Delete Unit"
+                onConfirm={handleDelete}
+                onCancel={() => setConfirmDelete(null)}
+            />
 
             {modal && (
                 <Modal

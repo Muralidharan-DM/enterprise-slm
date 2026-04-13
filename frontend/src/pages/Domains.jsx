@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
-import API from '../services/api'; // Step 24.2.2.2.1
+import API from '../services/api';
 import '../styles/OrgPages.css';
+import ConfirmModal from '../components/ConfirmModal';
 
 const Modal = ({ title, children, onClose }) => (
     <div className="modal-overlay" onClick={onClose}>
@@ -21,6 +22,7 @@ const Domains = () => {
     const [expanded, setExpanded] = useState(new Set());
     const [modal, setModal] = useState(null); // { type: 'domain'|'subdomain', domainId?, editing? }
     const [formName, setFormName] = useState('');
+    const [confirmDelete, setConfirmDelete] = useState(null); // { type: 'domain'|'subdomain', id, name }
 
     const fetchDomains = useCallback(async () => {
         setLoading(true);
@@ -88,25 +90,21 @@ const Domains = () => {
         }
     };
 
-    const deleteDomain = async (id) => {
-        if (!window.confirm("Are you sure? This will delete all associated subdomains.")) return;
+    const handleDeleteConfirmed = async () => {
+        if (!confirmDelete) return;
+        const { type, id } = confirmDelete;
+        setConfirmDelete(null);
         try {
-            await API.delete(`users/domains/manage/${id}/`);
-            toast.success('Domain deleted from database');
+            if (type === 'domain') {
+                await API.delete(`users/domains/manage/${id}/`);
+                toast.success('Domain deleted');
+            } else {
+                await API.delete(`users/subdomains/${id}/`);
+                toast.success('Subdomain deleted');
+            }
             fetchDomains();
-        } catch (err) {
-            toast.error("Deletion failed");
-        }
-    };
-
-    const deleteSubdomain = async (subId) => {
-        if (!window.confirm("Delete this subdomain?")) return;
-        try {
-            await API.delete(`users/subdomains/${subId}/`);
-            toast.success('Subdomain deleted from database');
-            fetchDomains();
-        } catch (err) {
-            toast.error("Deletion failed");
+        } catch {
+            toast.error('Deletion failed');
         }
     };
 
@@ -138,7 +136,7 @@ const Domains = () => {
                                 <div className="domain-actions">
                                     <button className="btn-icon" title="Add Subdomain" onClick={() => { openModal('subdomain', domain.id); setExpanded(p => new Set([...p, domain.id])); }}>+</button>
                                     <button className="btn-icon edit" title="Edit Domain" onClick={() => openModal('domain', null, domain)}>✏️</button>
-                                    <button className="btn-icon danger" title="Delete Domain" onClick={() => deleteDomain(domain.id)}>🗑️</button>
+                                    <button className="btn-icon danger" title="Delete Domain" onClick={() => setConfirmDelete({ type: 'domain', id: domain.id, name: domain.name })}>🗑️</button>
                                 </div>
                             </div>
 
@@ -153,7 +151,7 @@ const Domains = () => {
                                             <span className="subdomain-name">{sub.name}</span>
                                             <div className="domain-actions">
                                                 <button className="btn-icon edit" title="Edit" onClick={() => openModal('subdomain', domain.id, sub)}>✏️</button>
-                                                <button className="btn-icon danger" title="Delete" onClick={() => deleteSubdomain(sub.id)}>🗑️</button>
+                                                <button className="btn-icon danger" title="Delete" onClick={() => setConfirmDelete({ type: 'subdomain', id: sub.id, name: sub.name })}>🗑️</button>
                                             </div>
                                         </div>
                                     ))}
@@ -170,6 +168,19 @@ const Domains = () => {
                     )}
                 </div>
             )}
+
+            <ConfirmModal
+                open={!!confirmDelete}
+                title={confirmDelete?.type === 'domain'
+                    ? `Delete domain "${confirmDelete?.name}"?`
+                    : `Delete subdomain "${confirmDelete?.name}"?`}
+                message={confirmDelete?.type === 'domain'
+                    ? 'This will also delete all associated subdomains. This action cannot be undone.'
+                    : 'This subdomain will be permanently removed.'}
+                confirmLabel="Delete"
+                onConfirm={handleDeleteConfirmed}
+                onCancel={() => setConfirmDelete(null)}
+            />
 
             {modal && (
                 <Modal
